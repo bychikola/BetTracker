@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BetTracker - Учет ставок</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Шапка приложения -->
+    <header class="header">
+        <div class="container">
+            <h1><i class="fas fa-chart-line"></i> BetTracker</h1>
+            <button class="btn btn-primary" id="addBetBtn">
+                <i class="fas fa-plus"></i> Новая ставка
+            </button>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Dashboard со статистикой -->
+        <section class="dashboard">
+            <div class="stat-card">
+                <div class="stat-icon profit">
+                    <i class="fas fa-wallet"></i>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Общий профит</span>
+                    <span class="stat-value" id="totalProfit">0 ₽</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon roi">
+                    <i class="fas fa-percentage"></i>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">ROI</span>
+                    <span class="stat-value" id="roiValue">0%</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon winrate">
+                    <i class="fas fa-trophy"></i>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Winrate</span>
+                    <span class="stat-value" id="winrateValue">0%</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon avgcoef">
+                    <i class="fas fa-calculator"></i>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Средний КФ</span>
+                    <span class="stat-value" id="avgCoef">0.00</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Фильтр и таблица ставок -->
+        <section class="bets-section">
+            <div class="bets-header">
+                <h2>История ставок</h2>
+                <div class="filter-group">
+                    <label for="statusFilter">Фильтр:</label>
+                    <select id="statusFilter" class="filter-select">
+                        <option value="all">Все статусы</option>
+                        <option value="pending">Ожидание</option>
+                        <option value="win">Выигрыш</option>
+                        <option value="lose">Проигрыш</option>
+                        <option value="return">Возврат</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="table-wrapper">
+                <table class="bets-table">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Тип</th>
+                            <th>События</th>
+                            <th>КФ</th>
+                            <th>Сумма</th>
+                            <th>Профит</th>
+                            <th>Статус</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="betsTableBody">
+                        <!-- Ставки добавляются динамически -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="empty-state" id="emptyState">
+                <i class="fas fa-inbox"></i>
+                <p>Нет ставок для отображения</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Модальное окно добавления/редактирования ставки -->
+    <div class="modal" id="betModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Новая ставка</h3>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <form id="betForm">
+                <input type="hidden" id="betId">
+                
+                <!-- Контейнер для событий -->
+                <div class="events-container" id="eventsContainer">
+                    <div class="events-header">
+                        <h4>События</h4>
+                        <button type="button" class="btn btn-small btn-secondary" id="addEventBtn">
+                            <i class="fas fa-plus"></i> Добавить событие
+                        </button>
+                    </div>
+                    <div id="eventsList">
+                        <!-- События добавляются динамически -->
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Общий коэффициент</label>
+                        <input type="text" id="totalCoef" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="betAmount">Сумма ставки</label>
+                        <input type="number" id="betAmount" class="form-control" step="0.01" min="0" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="betStatus">Статус</label>
+                    <select id="betStatus" class="form-control">
+                        <option value="pending">Ожидание</option>
+                        <option value="win">Выигрыш</option>
+                        <option value="lose">Проигрыш</option>
+                        <option value="return">Возврат</option>
+                    </select>
+                </div>
+
+                <!-- Поле для загрузки изображения (только при редактировании) -->
+                <div class="form-group" id="imageGroup" style="display: none;">
+                    <label for="betImage">Фото чека</label>
+                    <input type="file" id="betImage" class="form-control" accept="image/*">
+                    <div class="image-preview" id="imagePreview"></div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Полноэкранный просмотр изображения -->
+    <div class="image-viewer" id="imageViewer">
+        <button class="viewer-close" id="closeViewer">&times;</button>
+        <img src="" alt="Фото чека" id="viewerImage">
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
