@@ -8,13 +8,30 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <!-- Индикатор загрузки -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p>Загрузка данных...</p>
+    </div>
+
+    <!-- Индикатор статуса подключения -->
+    <div class="connection-status" id="connectionStatus">
+        <i class="fas fa-cloud"></i>
+        <span>Онлайн</span>
+    </div>
+
     <!-- Шапка приложения -->
     <header class="header">
         <div class="container">
             <h1><i class="fas fa-chart-line"></i> BetTracker</h1>
-            <button class="btn btn-primary" id="addBetBtn">
-                <i class="fas fa-plus"></i> Новая ставка
-            </button>
+            <div class="header-actions">
+                <button class="btn btn-secondary btn-small" id="syncBtn" title="Синхронизировать">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="btn btn-primary" id="addBetBtn">
+                    <i class="fas fa-plus"></i> <span class="btn-text">Новая ставка</span>
+                </button>
+            </div>
         </div>
     </header>
 
@@ -94,6 +111,12 @@
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Мобильные карточки -->
+            <div class="mobile-cards" id="mobileCards">
+                <!-- Карточки добавляются динамически -->
+            </div>
+            
             <div class="empty-state" id="emptyState">
                 <i class="fas fa-inbox"></i>
                 <p>Нет ставок для отображения</p>
@@ -116,7 +139,7 @@
                     <div class="events-header">
                         <h4>События</h4>
                         <button type="button" class="btn btn-small btn-secondary" id="addEventBtn">
-                            <i class="fas fa-plus"></i> Добавить событие
+                            <i class="fas fa-plus"></i> Событие
                         </button>
                     </div>
                     <div id="eventsList">
@@ -145,16 +168,26 @@
                     </select>
                 </div>
 
-                <!-- Поле для загрузки изображения (только при редактировании) -->
-                <div class="form-group" id="imageGroup" style="display: none;">
+                <!-- Поле для загрузки изображения -->
+                <div class="form-group" id="imageGroup">
                     <label for="betImage">Фото чека</label>
-                    <input type="file" id="betImage" class="form-control" accept="image/*">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="betImage" class="form-control" accept="image/*">
+                        <label for="betImage" class="file-input-label">
+                            <i class="fas fa-camera"></i> Выбрать фото
+                        </label>
+                    </div>
                     <div class="image-preview" id="imagePreview"></div>
                 </div>
 
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" id="cancelBtn">Отмена</button>
-                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <span class="btn-text">Сохранить</span>
+                        <span class="btn-loading" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </span>
+                    </button>
                 </div>
             </form>
         </div>
@@ -165,6 +198,9 @@
         <button class="viewer-close" id="closeViewer">&times;</button>
         <img src="" alt="Фото чека" id="viewerImage">
     </div>
+
+    <!-- Уведомления -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <script src="script.js"></script>
 </body>
