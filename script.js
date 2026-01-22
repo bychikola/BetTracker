@@ -8,8 +8,8 @@
 // ========================================
 
 // !!! ЗАМЕНИТЕ НА СВОИ ДАННЫЕ ИЗ SUPABASE !!!
-const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+const SUPABASE_URL = 'https://jmpgnclsmjtkxhgsybks.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptcGduY2xzbWp0a3hoZ3N5YmtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5NjAwNDIsImV4cCI6MjA4NDUzNjA0Mn0.yBcfMVJujxelHXrI8TFCp2G7cjcposNkwYxVORXrSZk';
 
 // Проверка конфигурации
 const isConfigured = !SUPABASE_URL.includes('YOUR_PROJECT_ID');
