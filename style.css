@@ -202,6 +202,14 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    border: none;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+/* Иконки всегда черные внутри цветных кругов */
+.btn-icon i {
+    color: #000000 !important;
 }
 
 .btn-icon.view {
@@ -210,15 +218,16 @@ body {
 
 .btn-icon.view:hover {
     background-color: #536dfe;
+    transform: scale(1.1);
 }
 
 .btn-icon.edit {
     background-color: var(--accent-yellow);
-    color: #000;
 }
 
 .btn-icon.edit:hover {
     background-color: #ffca28;
+    transform: scale(1.1);
 }
 
 .btn-icon.delete {
@@ -227,6 +236,44 @@ body {
 
 .btn-icon.delete:hover {
     background-color: #ff5252;
+    transform: scale(1.1);
+}
+
+/* Мобильные карточки - кнопки действий */
+.bet-card-actions .btn-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+}
+
+.bet-card-actions .btn-icon i {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+
+/* Фикс для iOS и Android */
+@supports (-webkit-touch-callout: none) {
+    .btn-icon i {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
+    }
+}
+
+/* Дополнительный фикс для темной темы на мобильных */
+@media (prefers-color-scheme: dark) {
+    .btn-icon i {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
+    }
+}
+
+/* Принудительный цвет для всех состояний */
+.btn-icon:active i,
+.btn-icon:focus i,
+.btn-icon:hover i,
+.btn-icon:visited i {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
 }
 
 /* ========================================
