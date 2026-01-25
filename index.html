@@ -36,6 +36,19 @@
     </header>
 
     <main class="container">
+        <!-- Селектор профилей -->
+        <section class="profiles-section">
+            <div class="profiles-header">
+                <h2><i class="fas fa-layer-group"></i> Профили стратегий</h2>
+                <button class="btn btn-small btn-secondary" id="manageProfilesBtn">
+                    <i class="fas fa-cog"></i> <span class="btn-text">Управление</span>
+                </button>
+            </div>
+            <div class="profiles-list" id="profilesList">
+                <!-- Профили добавляются динамически -->
+            </div>
+        </section>
+
         <!-- Dashboard со статистикой -->
         <section class="dashboard">
             <div class="stat-card">
@@ -80,15 +93,17 @@
         <section class="bets-section">
             <div class="bets-header">
                 <h2>История ставок</h2>
-                <div class="filter-group">
-                    <label for="statusFilter">Фильтр:</label>
-                    <select id="statusFilter" class="filter-select">
-                        <option value="all">Все статусы</option>
-                        <option value="pending">Ожидание</option>
-                        <option value="win">Выигрыш</option>
-                        <option value="lose">Проигрыш</option>
-                        <option value="return">Возврат</option>
-                    </select>
+                <div class="filters-group">
+                    <div class="filter-group">
+                        <label for="statusFilter">Статус:</label>
+                        <select id="statusFilter" class="filter-select">
+                            <option value="all">Все</option>
+                            <option value="pending">Ожидание</option>
+                            <option value="win">Выигрыш</option>
+                            <option value="lose">Проигрыш</option>
+                            <option value="return">Возврат</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             
@@ -107,19 +122,20 @@
                         </tr>
                     </thead>
                     <tbody id="betsTableBody">
-                        <!-- Ставки добавляются динамически -->
                     </tbody>
                 </table>
             </div>
             
             <!-- Мобильные карточки -->
             <div class="mobile-cards" id="mobileCards">
-                <!-- Карточки добавляются динамически -->
             </div>
             
             <div class="empty-state" id="emptyState">
                 <i class="fas fa-inbox"></i>
                 <p>Нет ставок для отображения</p>
+                <button class="btn btn-primary" id="emptyAddBtn">
+                    <i class="fas fa-plus"></i> Добавить первую ставку
+                </button>
             </div>
         </section>
     </main>
@@ -143,7 +159,6 @@
                         </button>
                     </div>
                     <div id="eventsList">
-                        <!-- События добавляются динамически -->
                     </div>
                 </div>
 
@@ -190,6 +205,74 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно управления профилями -->
+    <div class="modal" id="profilesModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>Управление профилями</h3>
+                <button class="close-btn" id="closeProfilesModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Форма добавления профиля -->
+                <div class="profile-form-section">
+                    <h4 id="profileFormTitle">Новый профиль</h4>
+                    <form id="profileForm">
+                        <input type="hidden" id="profileId">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="profileName">Название</label>
+                                <input type="text" id="profileName" class="form-control" placeholder="Например: Лайв ставки" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="profileColor">Цвет</label>
+                                <input type="color" id="profileColor" class="form-control form-control-color" value="#3d5afe">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="profileDescription">Описание</label>
+                            <textarea id="profileDescription" class="form-control" rows="2" placeholder="Описание стратегии..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Иконка</label>
+                            <div class="icon-picker" id="iconPicker">
+                                <button type="button" class="icon-option active" data-icon="fa-chart-line"><i class="fas fa-chart-line"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-futbol"><i class="fas fa-futbol"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-basketball"><i class="fas fa-basketball"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-hockey-puck"><i class="fas fa-hockey-puck"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-baseball"><i class="fas fa-baseball"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-volleyball"><i class="fas fa-volleyball"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-table-tennis-paddle-ball"><i class="fas fa-table-tennis-paddle-ball"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-bolt"><i class="fas fa-bolt"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-fire"><i class="fas fa-fire"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-star"><i class="fas fa-star"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-crown"><i class="fas fa-crown"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-gem"><i class="fas fa-gem"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-rocket"><i class="fas fa-rocket"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-bullseye"><i class="fas fa-bullseye"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-dice"><i class="fas fa-dice"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-coins"><i class="fas fa-coins"></i></button>
+                            </div>
+                            <input type="hidden" id="profileIcon" value="fa-chart-line">
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelProfileBtn">Отмена</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Сохранить
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Список профилей -->
+                <div class="profiles-manage-list">
+                    <h4>Существующие профили</h4>
+                    <div id="profilesManageList">
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

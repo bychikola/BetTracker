@@ -194,6 +194,18 @@ body {
     font-size: 0.85rem;
 }
 
+.btn-danger {
+    background-color: var(--accent-red);
+    color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background-color: #ff5252;
+}
+
+/* ========================================
+   Кнопки-иконки (исправленные цвета)
+   ======================================== */
 .btn-icon {
     width: 36px;
     height: 36px;
@@ -207,9 +219,9 @@ body {
     transition: var(--transition);
 }
 
-/* Иконки всегда черные внутри цветных кругов */
 .btn-icon i {
     color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
 }
 
 .btn-icon.view {
@@ -239,41 +251,113 @@ body {
     transform: scale(1.1);
 }
 
-/* Мобильные карточки - кнопки действий */
-.bet-card-actions .btn-icon {
-    width: 32px;
-    height: 32px;
-    font-size: 0.8rem;
-}
-
-.bet-card-actions .btn-icon i {
-    color: #000000 !important;
-    -webkit-text-fill-color: #000000 !important;
-}
-
-/* Фикс для iOS и Android */
-@supports (-webkit-touch-callout: none) {
-    .btn-icon i {
-        color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important;
-    }
-}
-
-/* Дополнительный фикс для темной темы на мобильных */
-@media (prefers-color-scheme: dark) {
-    .btn-icon i {
-        color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important;
-    }
-}
-
-/* Принудительный цвет для всех состояний */
 .btn-icon:active i,
 .btn-icon:focus i,
 .btn-icon:hover i,
 .btn-icon:visited i {
     color: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
+}
+
+/* ========================================
+   Секция профилей
+   ======================================== */
+.profiles-section {
+    background-color: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 16px;
+    margin: 20px 0;
+    box-shadow: var(--shadow);
+}
+
+.profiles-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.profiles-header h2 {
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.profiles-list {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg-tertiary) transparent;
+}
+
+.profiles-list::-webkit-scrollbar {
+    height: 6px;
+}
+
+.profiles-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.profiles-list::-webkit-scrollbar-thumb {
+    background-color: var(--bg-tertiary);
+    border-radius: 3px;
+}
+
+.profile-card {
+    flex-shrink: 0;
+    background-color: var(--bg-tertiary);
+    border-radius: 10px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 2px solid transparent;
+    min-width: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.profile-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.profile-card.active {
+    border-color: var(--accent-blue);
+    background-color: rgba(61, 90, 254, 0.1);
+}
+
+.profile-card.all-profiles {
+    background: linear-gradient(135deg, var(--bg-tertiary) 0%, #3d3d3d 100%);
+}
+
+.profile-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.profile-card-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.profile-card-stats {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
 }
 
 /* ========================================
@@ -381,6 +465,13 @@ body {
 
 .bets-header h2 {
     font-size: 1.1rem;
+}
+
+.filters-group {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .filter-group {
@@ -583,6 +674,11 @@ body {
     font-size: 0.8rem;
 }
 
+.bet-card-actions .btn-icon i {
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+
 /* Стили для событий в таблице */
 .events-list {
     display: flex;
@@ -669,11 +765,14 @@ body {
     opacity: 0.5;
 }
 
+.empty-state p {
+    margin-bottom: 20px;
+}
+
 .empty-state.visible {
     display: block;
 }
 
-/* Скрываем таблицу и карточки когда пусто */
 .bets-section.empty .table-wrapper,
 .bets-section.empty .mobile-cards {
     display: none;
@@ -710,6 +809,10 @@ body {
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
 }
 
+.modal-content.modal-large {
+    max-width: 700px;
+}
+
 .modal-header {
     display: flex;
     justify-content: space-between;
@@ -720,6 +823,10 @@ body {
 
 .modal-header h3 {
     font-size: 1.1rem;
+}
+
+.modal-body {
+    padding: 20px;
 }
 
 .close-btn {
@@ -743,8 +850,23 @@ body {
 }
 
 /* Форма */
-#betForm {
+#betForm,
+#profileForm {
     padding: 20px;
+}
+
+#profileForm {
+    padding: 0;
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.profile-form-section h4,
+.profiles-manage-list h4 {
+    margin-bottom: 16px;
+    font-size: 1rem;
+    color: var(--text-secondary);
 }
 
 .form-group {
@@ -780,6 +902,17 @@ body {
     cursor: not-allowed;
 }
 
+.form-control-color {
+    height: 46px;
+    padding: 4px;
+    cursor: pointer;
+}
+
+textarea.form-control {
+    resize: vertical;
+    min-height: 60px;
+}
+
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -791,6 +924,98 @@ body {
     justify-content: flex-end;
     gap: 10px;
     margin-top: 20px;
+}
+
+/* Выбор иконки */
+.icon-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.icon-option {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 2px solid var(--border-color);
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+.icon-option:hover {
+    border-color: var(--accent-blue);
+}
+
+.icon-option.active {
+    border-color: var(--accent-blue);
+    background-color: var(--accent-blue);
+    color: #fff;
+}
+
+/* Список профилей в управлении */
+.profiles-manage-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.profile-manage-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background-color: var(--bg-tertiary);
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.profile-manage-item:last-child {
+    margin-bottom: 0;
+}
+
+.profile-manage-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.profile-manage-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-manage-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.profile-manage-description {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.profile-manage-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.profile-manage-actions .btn-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
 }
 
 /* Контейнер событий */
@@ -1074,5 +1299,35 @@ body {
         right: 15px;
         padding: 6px 10px;
         font-size: 0.7rem;
+    }
+    
+    .profile-card {
+        min-width: 120px;
+        padding: 10px 12px;
+    }
+    
+    .profile-card-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+    
+    .profile-card-name {
+        font-size: 0.75rem;
+    }
+}
+
+/* Фикс для iOS и Android */
+@supports (-webkit-touch-callout: none) {
+    .btn-icon i {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    .btn-icon i {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
     }
 }

@@ -1,21 +1,19 @@
 /**
  * BetTracker - Приложение для учета ставок на спорт
- * Использует Supabase для хранения данных в облаке
+ * С поддержкой профилей для разных стратегий
  */
 
 // ========================================
 // Конфигурация Supabase
 // ========================================
 
-// !!! ЗАМЕНИТЕ НА СВОИ ДАННЫЕ ИЗ SUPABASE !!!
 const SUPABASE_URL = 'https://jmpgnclsmjtkxhgsybks.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptcGduY2xzbWp0a3hoZ3N5YmtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5NjAwNDIsImV4cCI6MjA4NDUzNjA0Mn0.yBcfMVJujxelHXrI8TFCp2G7cjcposNkwYxVORXrSZk';
 
-// Проверка конфигурации
 const isConfigured = !SUPABASE_URL.includes('YOUR_PROJECT_ID');
 
 // ========================================
-// Supabase клиент (простая реализация без SDK)
+// Supabase клиент
 // ========================================
 
 class SupabaseClient {
@@ -38,14 +36,13 @@ class SupabaseClient {
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-            throw new Error(error.message || 'Ошибка запроса к базе данных');
+            throw new Error(error.message || 'Ошибка запроса');
         }
 
         const text = await response.text();
         return text ? JSON.parse(text) : null;
     }
 
-    // Получить все записи
     async getAll(table, filters = {}) {
         let query = table + '?select=*';
         
@@ -53,18 +50,20 @@ class SupabaseClient {
             query += `&status=eq.${filters.status}`;
         }
         
+        if (filters.profile_id && filters.profile_id !== 'all') {
+            query += `&profile_id=eq.${filters.profile_id}`;
+        }
+        
         query += '&order=created_at.desc';
         
         return this.request(query);
     }
 
-    // Получить запись по ID
     async getById(table, id) {
         const data = await this.request(`${table}?id=eq.${id}`);
         return data?.[0] || null;
     }
 
-    // Создать запись
     async create(table, data) {
         const result = await this.request(table, {
             method: 'POST',
@@ -73,7 +72,6 @@ class SupabaseClient {
         return result?.[0];
     }
 
-    // Обновить запись
     async update(table, id, data) {
         const result = await this.request(`${table}?id=eq.${id}`, {
             method: 'PATCH',
@@ -82,7 +80,6 @@ class SupabaseClient {
         return result?.[0];
     }
 
-    // Удалить запись
     async delete(table, id) {
         await this.request(`${table}?id=eq.${id}`, {
             method: 'DELETE'
@@ -90,20 +87,19 @@ class SupabaseClient {
     }
 }
 
-// Инициализация клиента
 const supabase = new SupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ========================================
-// Локальный кэш (IndexedDB как fallback)
+// Локальный кэш (IndexedDB)
 // ========================================
 
 const DB_NAME = 'BetTrackerCache';
-const STORE_NAME = 'bets';
+const DB_VERSION = 2;
 let localDb = null;
 
 async function initLocalDB() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 1);
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
         
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
@@ -113,41 +109,48 @@ async function initLocalDB() {
         
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+            
+            if (!db.objectStoreNames.contains('bets')) {
+                db.createObjectStore('bets', { keyPath: 'id', autoIncrement: true });
+            }
+            
+            if (!db.objectStoreNames.contains('profiles')) {
+                const profileStore = db.createObjectStore('profiles', { keyPath: 'id', autoIncrement: true });
+                // Добавляем профиль по умолчанию
+                profileStore.add({
+                    id: 1,
+                    name: 'Основной',
+                    description: 'Профиль по умолчанию',
+                    color: '#3d5afe',
+                    icon: 'fa-chart-line',
+                    created_at: new Date().toISOString()
+                });
             }
         };
     });
 }
 
-async function saveToLocalCache(bets) {
+async function saveToLocalCache(storeName, items) {
     if (!localDb) return;
     
     return new Promise((resolve, reject) => {
-        const transaction = localDb.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
+        const transaction = localDb.transaction([storeName], 'readwrite');
+        const store = transaction.objectStore(storeName);
         
-        // Очищаем и сохраняем заново
-        const clearRequest = store.clear();
-        
-        clearRequest.onsuccess = () => {
-            bets.forEach(bet => store.add(bet));
-            resolve();
-        };
-        
-        clearRequest.onerror = () => reject(clearRequest.error);
+        store.clear();
+        items.forEach(item => store.add(item));
         
         transaction.oncomplete = () => resolve();
         transaction.onerror = () => reject(transaction.error);
     });
 }
 
-async function getFromLocalCache() {
+async function getFromLocalCache(storeName) {
     if (!localDb) return [];
     
     return new Promise((resolve) => {
-        const transaction = localDb.transaction([STORE_NAME], 'readonly');
-        const store = transaction.objectStore(STORE_NAME);
+        const transaction = localDb.transaction([storeName], 'readonly');
+        const store = transaction.objectStore(storeName);
         const request = store.getAll();
         
         request.onsuccess = () => resolve(request.result || []);
@@ -155,16 +158,177 @@ async function getFromLocalCache() {
     });
 }
 
+async function addToLocalCache(storeName, item) {
+    if (!localDb) return item;
+    
+    return new Promise((resolve, reject) => {
+        const transaction = localDb.transaction([storeName], 'readwrite');
+        const store = transaction.objectStore(storeName);
+        const request = store.add(item);
+        
+        request.onsuccess = () => {
+            item.id = request.result;
+            resolve(item);
+        };
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function updateInLocalCache(storeName, item) {
+    if (!localDb) return item;
+    
+    return new Promise((resolve, reject) => {
+        const transaction = localDb.transaction([storeName], 'readwrite');
+        const store = transaction.objectStore(storeName);
+        const request = store.put(item);
+        
+        request.onsuccess = () => resolve(item);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function deleteFromLocalCache(storeName, id) {
+    if (!localDb) return;
+    
+    return new Promise((resolve, reject) => {
+        const transaction = localDb.transaction([storeName], 'readwrite');
+        const store = transaction.objectStore(storeName);
+        const request = store.delete(id);
+        
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
+
 // ========================================
-// API функции
+// Состояние приложения
 // ========================================
 
+let currentProfileId = 'all';
+let profiles = [];
 let betsCache = [];
 let isOnline = navigator.onLine;
 
-/**
- * Преобразование данных из БД в формат приложения
- */
+// ========================================
+// API функции - Профили
+// ========================================
+
+function formatProfileFromDB(profile) {
+    if (!profile) return null;
+    return {
+        id: profile.id,
+        name: profile.name || 'Без названия',
+        description: profile.description || '',
+        color: profile.color || '#3d5afe',
+        icon: profile.icon || 'fa-chart-line',
+        created_at: profile.created_at
+    };
+}
+
+async function getAllProfiles() {
+    if (!isConfigured) {
+        return getFromLocalCache('profiles');
+    }
+
+    try {
+        const data = await supabase.getAll('profiles');
+        const formatted = (data || []).map(formatProfileFromDB).filter(p => p !== null);
+        await saveToLocalCache('profiles', formatted);
+        return formatted;
+    } catch (error) {
+        console.error('Ошибка загрузки профилей:', error);
+        return getFromLocalCache('profiles');
+    }
+}
+
+async function getProfileById(id) {
+    if (!isConfigured) {
+        const cached = await getFromLocalCache('profiles');
+        return cached.find(p => p.id === id) || null;
+    }
+
+    try {
+        const profile = await supabase.getById('profiles', id);
+        return formatProfileFromDB(profile);
+    } catch (error) {
+        console.error('Ошибка получения профиля:', error);
+        return null;
+    }
+}
+
+async function createProfile(profile) {
+    const dbProfile = {
+        name: profile.name,
+        description: profile.description || '',
+        color: profile.color || '#3d5afe',
+        icon: profile.icon || 'fa-chart-line'
+    };
+
+    if (!isConfigured) {
+        const newProfile = {
+            ...dbProfile,
+            id: Date.now(),
+            created_at: new Date().toISOString()
+        };
+        await addToLocalCache('profiles', newProfile);
+        return newProfile;
+    }
+
+    try {
+        const result = await supabase.create('profiles', dbProfile);
+        return formatProfileFromDB(result);
+    } catch (error) {
+        console.error('Ошибка создания профиля:', error);
+        throw error;
+    }
+}
+
+async function updateProfile(profile) {
+    const dbProfile = {
+        name: profile.name,
+        description: profile.description || '',
+        color: profile.color || '#3d5afe',
+        icon: profile.icon || 'fa-chart-line',
+        updated_at: new Date().toISOString()
+    };
+
+    if (!isConfigured) {
+        const updated = { ...profile, ...dbProfile };
+        await updateInLocalCache('profiles', updated);
+        return updated;
+    }
+
+    try {
+        const result = await supabase.update('profiles', profile.id, dbProfile);
+        return formatProfileFromDB(result);
+    } catch (error) {
+        console.error('Ошибка обновления профиля:', error);
+        throw error;
+    }
+}
+
+async function deleteProfile(id) {
+    if (!isConfigured) {
+        await deleteFromLocalCache('profiles', id);
+        // Удаляем связанные ставки
+        const bets = await getFromLocalCache('bets');
+        const filteredBets = bets.filter(b => b.profile_id !== id);
+        await saveToLocalCache('bets', filteredBets);
+        return;
+    }
+
+    try {
+        await supabase.delete('profiles', id);
+    } catch (error) {
+        console.error('Ошибка удаления профиля:', error);
+        throw error;
+    }
+}
+
+// ========================================
+// API функции - Ставки
+// ========================================
+
 function formatBetFromDB(bet) {
     if (!bet) return null;
     
@@ -176,61 +340,61 @@ function formatBetFromDB(bet) {
         status: bet.status || 'pending',
         type: bet.type || 'single',
         image: bet.image || null,
+        profile_id: bet.profile_id || null,
         date: bet.created_at || new Date().toISOString()
     };
 }
 
-/**
- * Получение всех ставок
- */
 async function getAllBets(filter = 'all') {
+    const filters = { status: filter };
+    
+    if (currentProfileId !== 'all') {
+        filters.profile_id = currentProfileId;
+    }
+
     if (!isConfigured) {
-        console.log('Supabase не настроен, используем локальный кэш');
-        const cached = await getFromLocalCache();
+        let bets = await getFromLocalCache('bets');
+        
         if (filter !== 'all') {
-            return cached.filter(bet => bet.status === filter);
+            bets = bets.filter(b => b.status === filter);
         }
-        return cached;
+        
+        if (currentProfileId !== 'all') {
+            bets = bets.filter(b => b.profile_id === parseInt(currentProfileId));
+        }
+        
+        return bets.sort((a, b) => new Date(b.date) - new Date(a.date));
     }
 
     try {
-        console.log('Загрузка ставок из Supabase...');
-        const bets = await supabase.getAll('bets', { status: filter });
-        console.log('Получено ставок:', bets?.length || 0);
+        const bets = await supabase.getAll('bets', filters);
+        const formatted = (bets || []).map(formatBetFromDB).filter(b => b !== null);
         
-        if (!bets || !Array.isArray(bets)) {
-            console.warn('Получены некорректные данные:', bets);
-            return [];
+        if (filter === 'all' && currentProfileId === 'all') {
+            betsCache = formatted;
+            await saveToLocalCache('bets', formatted);
         }
         
-        // Преобразуем данные из БД в формат приложения
-        const formattedBets = bets.map(formatBetFromDB).filter(bet => bet !== null);
-        console.log('Отформатированные ставки:', formattedBets);
-        
-        // Сохраняем в локальный кэш
-        if (filter === 'all') {
-            betsCache = formattedBets;
-            await saveToLocalCache(formattedBets);
-        }
-        
-        return formattedBets;
+        return formatted;
     } catch (error) {
-        console.error('Ошибка загрузки данных:', error);
-        showToast('Ошибка загрузки. Показаны кэшированные данные.', 'warning');
-        const cached = await getFromLocalCache();
+        console.error('Ошибка загрузки ставок:', error);
+        let cached = await getFromLocalCache('bets');
+        
         if (filter !== 'all') {
-            return cached.filter(bet => bet.status === filter);
+            cached = cached.filter(b => b.status === filter);
         }
+        
+        if (currentProfileId !== 'all') {
+            cached = cached.filter(b => b.profile_id === parseInt(currentProfileId));
+        }
+        
         return cached;
     }
 }
 
-/**
- * Получение ставки по ID
- */
 async function getBetById(id) {
     if (!isConfigured) {
-        const cached = await getFromLocalCache();
+        const cached = await getFromLocalCache('bets');
         return cached.find(b => b.id === id) || null;
     }
 
@@ -243,9 +407,6 @@ async function getBetById(id) {
     }
 }
 
-/**
- * Добавление новой ставки
- */
 async function addBet(bet) {
     const dbBet = {
         events: bet.events,
@@ -253,23 +414,26 @@ async function addBet(bet) {
         amount: bet.amount,
         status: bet.status,
         type: bet.type,
-        image: bet.image || null
+        image: bet.image || null,
+        profile_id: currentProfileId !== 'all' ? parseInt(currentProfileId) : null
     };
 
     if (!isConfigured) {
-        // Локальное сохранение
-        const cached = await getFromLocalCache();
-        const newId = cached.length > 0 ? Math.max(...cached.map(b => b.id || 0)) + 1 : 1;
-        const newBet = { ...bet, id: newId, date: new Date().toISOString() };
+        const newBet = {
+            ...bet,
+            id: Date.now(),
+            profile_id: dbBet.profile_id,
+            date: new Date().toISOString()
+        };
+        
+        const cached = await getFromLocalCache('bets');
         cached.unshift(newBet);
-        await saveToLocalCache(cached);
+        await saveToLocalCache('bets', cached);
         return newBet;
     }
 
     try {
-        console.log('Добавление ставки в Supabase:', dbBet);
         const result = await supabase.create('bets', dbBet);
-        console.log('Результат добавления:', result);
         return formatBetFromDB(result);
     } catch (error) {
         console.error('Ошибка добавления ставки:', error);
@@ -277,9 +441,6 @@ async function addBet(bet) {
     }
 }
 
-/**
- * Обновление ставки
- */
 async function updateBet(bet) {
     const dbBet = {
         events: bet.events,
@@ -288,15 +449,16 @@ async function updateBet(bet) {
         status: bet.status,
         type: bet.type,
         image: bet.image,
+        profile_id: bet.profile_id,
         updated_at: new Date().toISOString()
     };
 
     if (!isConfigured) {
-        const cached = await getFromLocalCache();
+        const cached = await getFromLocalCache('bets');
         const index = cached.findIndex(b => b.id === bet.id);
         if (index !== -1) {
             cached[index] = { ...cached[index], ...bet };
-            await saveToLocalCache(cached);
+            await saveToLocalCache('bets', cached);
         }
         return bet;
     }
@@ -310,14 +472,11 @@ async function updateBet(bet) {
     }
 }
 
-/**
- * Удаление ставки
- */
 async function deleteBet(id) {
     if (!isConfigured) {
-        const cached = await getFromLocalCache();
+        const cached = await getFromLocalCache('bets');
         const filtered = cached.filter(b => b.id !== id);
-        await saveToLocalCache(filtered);
+        await saveToLocalCache('bets', filtered);
         return;
     }
 
@@ -333,9 +492,6 @@ async function deleteBet(id) {
 // Работа с изображениями
 // ========================================
 
-/**
- * Конвертация файла в Base64 с сжатием
- */
 function fileToBase64(file, maxWidth = 800) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -348,7 +504,6 @@ function fileToBase64(file, maxWidth = 800) {
                 let width = img.width;
                 let height = img.height;
                 
-                // Сжимаем если больше maxWidth
                 if (width > maxWidth) {
                     height = (height * maxWidth) / width;
                     width = maxWidth;
@@ -360,7 +515,6 @@ function fileToBase64(file, maxWidth = 800) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // Конвертируем в JPEG с качеством 0.7
                 resolve(canvas.toDataURL('image/jpeg', 0.7));
             };
             
@@ -378,25 +532,28 @@ function fileToBase64(file, maxWidth = 800) {
 // ========================================
 
 const elements = {
-    // Загрузка и статус
     loadingOverlay: document.getElementById('loadingOverlay'),
     connectionStatus: document.getElementById('connectionStatus'),
     
-    // Кнопки
     addBetBtn: document.getElementById('addBetBtn'),
+    emptyAddBtn: document.getElementById('emptyAddBtn'),
     syncBtn: document.getElementById('syncBtn'),
+    manageProfilesBtn: document.getElementById('manageProfilesBtn'),
+    
     closeModal: document.getElementById('closeModal'),
     cancelBtn: document.getElementById('cancelBtn'),
     addEventBtn: document.getElementById('addEventBtn'),
     closeViewer: document.getElementById('closeViewer'),
     submitBtn: document.getElementById('submitBtn'),
     
-    // Модальные окна
+    closeProfilesModal: document.getElementById('closeProfilesModal'),
+    cancelProfileBtn: document.getElementById('cancelProfileBtn'),
+    
     betModal: document.getElementById('betModal'),
+    profilesModal: document.getElementById('profilesModal'),
     imageViewer: document.getElementById('imageViewer'),
     viewerImage: document.getElementById('viewerImage'),
     
-    // Форма
     betForm: document.getElementById('betForm'),
     betId: document.getElementById('betId'),
     eventsList: document.getElementById('eventsList'),
@@ -404,11 +561,20 @@ const elements = {
     betAmount: document.getElementById('betAmount'),
     betStatus: document.getElementById('betStatus'),
     betImage: document.getElementById('betImage'),
-    imageGroup: document.getElementById('imageGroup'),
     imagePreview: document.getElementById('imagePreview'),
     modalTitle: document.getElementById('modalTitle'),
     
-    // Таблица и карточки
+    profileForm: document.getElementById('profileForm'),
+    profileId: document.getElementById('profileId'),
+    profileName: document.getElementById('profileName'),
+    profileDescription: document.getElementById('profileDescription'),
+    profileColor: document.getElementById('profileColor'),
+    profileIcon: document.getElementById('profileIcon'),
+    profileFormTitle: document.getElementById('profileFormTitle'),
+    iconPicker: document.getElementById('iconPicker'),
+    profilesManageList: document.getElementById('profilesManageList'),
+    
+    profilesList: document.getElementById('profilesList'),
     betsTableBody: document.getElementById('betsTableBody'),
     mobileCards: document.getElementById('mobileCards'),
     statusFilter: document.getElementById('statusFilter'),
@@ -416,13 +582,11 @@ const elements = {
     betsSection: document.querySelector('.bets-section'),
     tableWrapper: document.querySelector('.table-wrapper'),
     
-    // Статистика
     totalProfit: document.getElementById('totalProfit'),
     roiValue: document.getElementById('roiValue'),
     winrateValue: document.getElementById('winrateValue'),
     avgCoef: document.getElementById('avgCoef'),
     
-    // Уведомления
     toastContainer: document.getElementById('toastContainer')
 };
 
@@ -475,7 +639,137 @@ function updateConnectionStatus() {
 }
 
 // ========================================
-// Управление событиями в форме
+// Рендеринг профилей
+// ========================================
+
+async function renderProfiles() {
+    profiles = await getAllProfiles();
+    
+    // Считаем статистику для каждого профиля
+    const allBets = await getAllBets('all');
+    
+    let html = `
+        <div class="profile-card ${currentProfileId === 'all' ? 'active' : ''} all-profiles" data-profile-id="all">
+            <div class="profile-card-icon" style="background: linear-gradient(135deg, #3d5afe, #00e676);">
+                <i class="fas fa-layer-group" style="color: #fff;"></i>
+            </div>
+            <div class="profile-card-name">Все профили</div>
+            <div class="profile-card-stats">${allBets.length} ставок</div>
+        </div>
+    `;
+    
+    profiles.forEach(profile => {
+        const profileBets = allBets.filter(b => b.profile_id === profile.id);
+        const isActive = currentProfileId === profile.id.toString();
+        
+        html += `
+            <div class="profile-card ${isActive ? 'active' : ''}" data-profile-id="${profile.id}">
+                <div class="profile-card-icon" style="background-color: ${profile.color}20; color: ${profile.color};">
+                    <i class="fas ${profile.icon}"></i>
+                </div>
+                <div class="profile-card-name">${profile.name}</div>
+                <div class="profile-card-stats">${profileBets.length} ставок</div>
+            </div>
+        `;
+    });
+    
+    elements.profilesList.innerHTML = html;
+    
+    // Обработчики кликов
+    elements.profilesList.querySelectorAll('.profile-card').forEach(card => {
+        card.addEventListener('click', () => {
+            currentProfileId = card.dataset.profileId;
+            renderProfiles();
+            renderBets();
+            updateStatistics();
+        });
+    });
+}
+
+async function renderProfilesManageList() {
+    profiles = await getAllProfiles();
+    
+    if (profiles.length === 0) {
+        elements.profilesManageList.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">Нет профилей</p>';
+        return;
+    }
+    
+    let html = '';
+    
+    profiles.forEach(profile => {
+        html += `
+            <div class="profile-manage-item" data-profile-id="${profile.id}">
+                <div class="profile-manage-icon" style="background-color: ${profile.color}20; color: ${profile.color};">
+                    <i class="fas ${profile.icon}"></i>
+                </div>
+                <div class="profile-manage-info">
+                    <div class="profile-manage-name">${profile.name}</div>
+                    <div class="profile-manage-description">${profile.description || 'Без описания'}</div>
+                </div>
+                <div class="profile-manage-actions">
+                    <button class="btn btn-icon edit" data-action="edit-profile" data-id="${profile.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-icon delete" data-action="delete-profile" data-id="${profile.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    elements.profilesManageList.innerHTML = html;
+    
+    // Обработчики
+    elements.profilesManageList.querySelectorAll('button[data-action]').forEach(btn => {
+        btn.addEventListener('click', handleProfileAction);
+    });
+}
+
+async function handleProfileAction(e) {
+    const button = e.target.closest('button[data-action]');
+    if (!button) return;
+    
+    const action = button.dataset.action;
+    const id = parseInt(button.dataset.id);
+    
+    if (action === 'edit-profile') {
+        const profile = await getProfileById(id);
+        if (profile) {
+            elements.profileFormTitle.textContent = 'Редактирование профиля';
+            elements.profileId.value = profile.id;
+            elements.profileName.value = profile.name;
+            elements.profileDescription.value = profile.description || '';
+            elements.profileColor.value = profile.color;
+            elements.profileIcon.value = profile.icon;
+            
+            elements.iconPicker.querySelectorAll('.icon-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.icon === profile.icon);
+            });
+        }
+    } else if (action === 'delete-profile') {
+        if (confirm('Удалить профиль и все связанные ставки?')) {
+            try {
+                await deleteProfile(id);
+                
+                if (currentProfileId === id.toString()) {
+                    currentProfileId = 'all';
+                }
+                
+                showToast('Профиль удалён', 'success');
+                await renderProfilesManageList();
+                await renderProfiles();
+                await renderBets();
+                await updateStatistics();
+            } catch (error) {
+                showToast('Ошибка удаления', 'error');
+            }
+        }
+    }
+}
+
+// ========================================
+// Управление событиями в форме ставки
 // ========================================
 
 let eventCounter = 0;
@@ -488,17 +782,17 @@ function createEventCard(event = null) {
     card.dataset.eventId = eventId;
     
     card.innerHTML = `
-        <button type="button" class="remove-event-btn" title="Удалить событие">
+        <button type="button" class="remove-event-btn" title="Удалить">
             <i class="fas fa-times"></i>
         </button>
         <div class="form-group">
-            <label>Название события</label>
+            <label>Событие</label>
             <input type="text" class="form-control event-name" placeholder="Команда А vs Команда Б" 
                    value="${event?.name || ''}" required>
         </div>
         <div class="form-group">
             <label>Маркет</label>
-            <input type="text" class="form-control event-market" placeholder="П1, ТБ 2.5, Фора..." 
+            <input type="text" class="form-control event-market" placeholder="П1, ТБ 2.5..." 
                    value="${event?.market || ''}" required>
         </div>
         <div class="form-group">
@@ -513,7 +807,7 @@ function createEventCard(event = null) {
             card.remove();
             calculateTotalCoef();
         } else {
-            showToast('Должно быть хотя бы одно событие!', 'warning');
+            showToast('Минимум одно событие!', 'warning');
         }
     });
     
@@ -554,10 +848,10 @@ function getEventsFromForm() {
 }
 
 // ========================================
-// Управление модальными окнами
+// Модальные окна
 // ========================================
 
-function openAddModal() {
+function openAddBetModal() {
     elements.modalTitle.textContent = 'Новая ставка';
     elements.betId.value = '';
     elements.betForm.reset();
@@ -570,7 +864,7 @@ function openAddModal() {
     document.body.style.overflow = 'hidden';
 }
 
-async function openEditModal(id) {
+async function openEditBetModal(id) {
     const bet = await getBetById(id);
     if (!bet) {
         showToast('Ставка не найдена', 'error');
@@ -597,8 +891,8 @@ async function openEditModal(id) {
     
     if (bet.image) {
         elements.imagePreview.innerHTML = `
-            <img src="${bet.image}" alt="Фото чека" onclick="openImageViewer(this.src)">
-            <span class="remove-image" onclick="removeImage()"><i class="fas fa-trash"></i> Удалить фото</span>
+            <img src="${bet.image}" alt="Фото" onclick="openImageViewer(this.src)">
+            <span class="remove-image" onclick="removeImage()"><i class="fas fa-trash"></i> Удалить</span>
         `;
     } else {
         elements.imagePreview.innerHTML = '';
@@ -608,9 +902,34 @@ async function openEditModal(id) {
     document.body.style.overflow = 'hidden';
 }
 
-function closeModal() {
+function closeBetModal() {
     elements.betModal.classList.remove('active');
     document.body.style.overflow = '';
+}
+
+function openProfilesModal() {
+    resetProfileForm();
+    renderProfilesManageList();
+    elements.profilesModal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeProfilesModal() {
+    elements.profilesModal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+function resetProfileForm() {
+    elements.profileFormTitle.textContent = 'Новый профиль';
+    elements.profileId.value = '';
+    elements.profileName.value = '';
+    elements.profileDescription.value = '';
+    elements.profileColor.value = '#3d5afe';
+    elements.profileIcon.value = 'fa-chart-line';
+    
+    elements.iconPicker.querySelectorAll('.icon-option').forEach(opt => {
+        opt.classList.toggle('active', opt.dataset.icon === 'fa-chart-line');
+    });
 }
 
 function openImageViewer(imageSrc) {
@@ -629,22 +948,20 @@ function removeImage() {
     elements.betImage.value = '';
 }
 
-// Глобальные функции для inline обработчиков
 window.openImageViewer = openImageViewer;
 window.removeImage = removeImage;
 
 // ========================================
-// Обработка формы
+// Обработка форм
 // ========================================
 
-async function handleFormSubmit(e) {
+async function handleBetFormSubmit(e) {
     e.preventDefault();
     
     const submitBtn = elements.submitBtn;
     const btnText = submitBtn.querySelector('.btn-text');
     const btnLoading = submitBtn.querySelector('.btn-loading');
     
-    // Показываем загрузку
     submitBtn.disabled = true;
     btnText.style.display = 'none';
     btnLoading.style.display = 'inline';
@@ -657,11 +974,10 @@ async function handleFormSubmit(e) {
         const betId = elements.betId.value;
         
         if (events.length === 0) {
-            showToast('Добавьте хотя бы одно событие!', 'warning');
+            showToast('Добавьте событие!', 'warning');
             return;
         }
         
-        // Обработка изображения
         const imageFile = elements.betImage.files[0];
         if (imageFile) {
             currentImageBase64 = await fileToBase64(imageFile);
@@ -680,6 +996,7 @@ async function handleFormSubmit(e) {
             bet.id = parseInt(betId);
             const existingBet = await getBetById(bet.id);
             bet.date = existingBet?.date;
+            bet.profile_id = existingBet?.profile_id;
             await updateBet(bet);
             showToast('Ставка обновлена!', 'success');
         } else {
@@ -687,17 +1004,55 @@ async function handleFormSubmit(e) {
             showToast('Ставка добавлена!', 'success');
         }
         
-        closeModal();
+        closeBetModal();
         await renderBets();
+        await renderProfiles();
         await updateStatistics();
         
     } catch (error) {
-        console.error('Ошибка сохранения:', error);
-        showToast('Ошибка сохранения ставки', 'error');
+        console.error('Ошибка:', error);
+        showToast('Ошибка сохранения', 'error');
     } finally {
         submitBtn.disabled = false;
         btnText.style.display = 'inline';
         btnLoading.style.display = 'none';
+    }
+}
+
+async function handleProfileFormSubmit(e) {
+    e.preventDefault();
+    
+    const profile = {
+        name: elements.profileName.value.trim(),
+        description: elements.profileDescription.value.trim(),
+        color: elements.profileColor.value,
+        icon: elements.profileIcon.value
+    };
+    
+    if (!profile.name) {
+        showToast('Введите название!', 'warning');
+        return;
+    }
+    
+    try {
+        const profileId = elements.profileId.value;
+        
+        if (profileId) {
+            profile.id = parseInt(profileId);
+            await updateProfile(profile);
+            showToast('Профиль обновлён!', 'success');
+        } else {
+            await createProfile(profile);
+            showToast('Профиль создан!', 'success');
+        }
+        
+        resetProfileForm();
+        await renderProfilesManageList();
+        await renderProfiles();
+        
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showToast('Ошибка сохранения', 'error');
     }
 }
 
@@ -710,21 +1065,16 @@ function calculateProfit(bet) {
     const totalCoef = parseFloat(bet.totalCoef) || 0;
     
     switch (bet.status) {
-        case 'win':
-            return (amount * totalCoef) - amount;
-        case 'lose':
-            return -amount;
-        default:
-            return 0;
+        case 'win': return (amount * totalCoef) - amount;
+        case 'lose': return -amount;
+        default: return 0;
     }
 }
 
 function formatDate(isoString) {
     if (!isoString) return 'Н/Д';
-    
     try {
-        const date = new Date(isoString);
-        return date.toLocaleDateString('ru-RU', {
+        return new Date(isoString).toLocaleDateString('ru-RU', {
             day: '2-digit',
             month: '2-digit',
             year: '2-digit',
@@ -737,13 +1087,7 @@ function formatDate(isoString) {
 }
 
 function getStatusText(status) {
-    const statuses = {
-        pending: 'Ожидание',
-        win: 'Выигрыш',
-        lose: 'Проигрыш',
-        return: 'Возврат'
-    };
-    return statuses[status] || status;
+    return { pending: 'Ожидание', win: 'Выигрыш', lose: 'Проигрыш', return: 'Возврат' }[status] || status;
 }
 
 function createBetRow(bet) {
@@ -752,37 +1096,30 @@ function createBetRow(bet) {
     const profitText = profit > 0 ? `+${profit.toFixed(0)}₽` : `${profit.toFixed(0)}₽`;
     
     const events = Array.isArray(bet.events) ? bet.events : [];
-    const eventsHtml = events.map(event => `
+    const eventsHtml = events.map(e => `
         <div class="event-item">
-            <span class="event-name">${event.name || 'Без названия'}</span>
-            <span class="event-market">${event.market || ''} @ ${event.coef || 0}</span>
+            <span class="event-name">${e.name || ''}</span>
+            <span class="event-market">${e.market || ''} | ${e.coef || 0}</span>
         </div>
-    `).join('');
+    `).join('') || '<em>Нет событий</em>';
     
     const row = document.createElement('tr');
     row.innerHTML = `
         <td>${formatDate(bet.date)}</td>
         <td>${bet.type === 'express' ? 'Экспресс' : 'Ординар'}</td>
-        <td><div class="events-list">${eventsHtml || '<em>Нет событий</em>'}</div></td>
+        <td><div class="events-list">${eventsHtml}</div></td>
         <td>${(bet.totalCoef || 0).toFixed(2)}</td>
         <td>${(bet.amount || 0).toFixed(0)}₽</td>
         <td class="${profitClass}">${profitText}</td>
         <td><span class="status-badge status-${bet.status}">${getStatusText(bet.status)}</span></td>
         <td class="actions-cell">
             <div class="actions-wrapper">
-                ${bet.image ? `<button class="btn btn-icon view" title="Фото" data-action="view" data-id="${bet.id}">
-                    <i class="fas fa-camera"></i>
-                </button>` : ''}
-                <button class="btn btn-icon edit" title="Редактировать" data-action="edit" data-id="${bet.id}">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-icon delete" title="Удалить" data-action="delete" data-id="${bet.id}">
-                    <i class="fas fa-trash"></i>
-                </button>
+                ${bet.image ? `<button class="btn btn-icon view" data-action="view" data-id="${bet.id}"><i class="fas fa-camera"></i></button>` : ''}
+                <button class="btn btn-icon edit" data-action="edit" data-id="${bet.id}"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-icon delete" data-action="delete" data-id="${bet.id}"><i class="fas fa-trash"></i></button>
             </div>
         </td>
     `;
-    
     return row;
 }
 
@@ -792,12 +1129,12 @@ function createBetCard(bet) {
     const profitText = profit > 0 ? `+${profit.toFixed(0)}₽` : `${profit.toFixed(0)}₽`;
     
     const events = Array.isArray(bet.events) ? bet.events : [];
-    const eventsHtml = events.map(event => `
+    const eventsHtml = events.map(e => `
         <div class="bet-card-event">
-            <div class="bet-card-event-name">${event.name || 'Без названия'}</div>
-            <div class="bet-card-event-market">${event.market || ''} @ ${event.coef || 0}</div>
+            <div class="bet-card-event-name">${e.name || ''}</div>
+            <div class="bet-card-event-market">${e.market || ''} @ ${e.coef || 0}</div>
         </div>
-    `).join('');
+    `).join('') || '<em>Нет событий</em>';
     
     const card = document.createElement('div');
     card.className = `bet-card status-${bet.status}`;
@@ -806,7 +1143,7 @@ function createBetCard(bet) {
             <span class="bet-card-date">${formatDate(bet.date)}</span>
             <span class="bet-card-type">${bet.type === 'express' ? 'Экспресс' : 'Ординар'}</span>
         </div>
-        <div class="bet-card-events">${eventsHtml || '<em>Нет событий</em>'}</div>
+        <div class="bet-card-events">${eventsHtml}</div>
         <div class="bet-card-stats">
             <div class="bet-card-stat">
                 <div class="bet-card-stat-label">Коэф</div>
@@ -824,73 +1161,48 @@ function createBetCard(bet) {
         <div class="bet-card-footer">
             <span class="status-badge status-${bet.status}">${getStatusText(bet.status)}</span>
             <div class="bet-card-actions">
-                ${bet.image ? `<button class="btn btn-icon view" data-action="view" data-id="${bet.id}">
-                    <i class="fas fa-camera"></i>
-                </button>` : ''}
-                <button class="btn btn-icon edit" data-action="edit" data-id="${bet.id}">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-icon delete" data-action="delete" data-id="${bet.id}">
-                    <i class="fas fa-trash"></i>
-                </button>
+                ${bet.image ? `<button class="btn btn-icon view" data-action="view" data-id="${bet.id}"><i class="fas fa-camera"></i></button>` : ''}
+                <button class="btn btn-icon edit" data-action="edit" data-id="${bet.id}"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-icon delete" data-action="delete" data-id="${bet.id}"><i class="fas fa-trash"></i></button>
             </div>
         </div>
     `;
-    
     return card;
 }
 
 async function renderBets() {
-    console.log('Рендеринг ставок...');
-    
     const filter = elements.statusFilter.value;
     let bets = [];
     
     try {
         bets = await getAllBets(filter);
-        console.log('Ставки для рендеринга:', bets);
     } catch (error) {
-        console.error('Ошибка получения ставок:', error);
-        bets = [];
+        console.error('Ошибка:', error);
     }
     
-    // Очистка
     elements.betsTableBody.innerHTML = '';
     elements.mobileCards.innerHTML = '';
     
     if (!bets || bets.length === 0) {
-        console.log('Нет ставок для отображения');
         elements.emptyState.classList.add('visible');
         elements.betsSection.classList.add('empty');
-        if (elements.tableWrapper) {
-            elements.tableWrapper.style.display = 'none';
-        }
+        if (elements.tableWrapper) elements.tableWrapper.style.display = 'none';
         elements.mobileCards.style.display = 'none';
     } else {
-        console.log(`Отображаем ${bets.length} ставок`);
         elements.emptyState.classList.remove('visible');
         elements.betsSection.classList.remove('empty');
         
-        // Показываем таблицу/карточки в зависимости от ширины экрана
         if (window.innerWidth >= 900) {
-            if (elements.tableWrapper) {
-                elements.tableWrapper.style.display = 'block';
-            }
+            if (elements.tableWrapper) elements.tableWrapper.style.display = 'block';
             elements.mobileCards.style.display = 'none';
         } else {
-            if (elements.tableWrapper) {
-                elements.tableWrapper.style.display = 'none';
-            }
+            if (elements.tableWrapper) elements.tableWrapper.style.display = 'none';
             elements.mobileCards.style.display = 'flex';
         }
         
         bets.forEach(bet => {
-            try {
-                elements.betsTableBody.appendChild(createBetRow(bet));
-                elements.mobileCards.appendChild(createBetCard(bet));
-            } catch (error) {
-                console.error('Ошибка рендеринга ставки:', bet, error);
-            }
+            elements.betsTableBody.appendChild(createBetRow(bet));
+            elements.mobileCards.appendChild(createBetCard(bet));
         });
     }
 }
@@ -903,10 +1215,13 @@ async function updateStatistics() {
     let bets = [];
     
     try {
+        // Получаем все ставки для текущего профиля
+        const savedFilter = elements.statusFilter.value;
+        elements.statusFilter.value = 'all';
         bets = await getAllBets('all');
+        elements.statusFilter.value = savedFilter;
     } catch (error) {
-        console.error('Ошибка получения статистики:', error);
-        bets = [];
+        console.error('Ошибка:', error);
     }
     
     if (!bets || bets.length === 0) {
@@ -919,28 +1234,22 @@ async function updateStatistics() {
         return;
     }
     
-    const completedBets = bets.filter(bet => bet.status !== 'pending');
-    const wonBets = bets.filter(bet => bet.status === 'win');
+    const completedBets = bets.filter(b => b.status !== 'pending');
+    const wonBets = bets.filter(b => b.status === 'win');
     
-    // Общий профит
-    const totalProfit = bets.reduce((sum, bet) => sum + calculateProfit(bet), 0);
+    const totalProfit = bets.reduce((sum, b) => sum + calculateProfit(b), 0);
     elements.totalProfit.textContent = `${totalProfit >= 0 ? '+' : ''}${totalProfit.toFixed(0)}₽`;
     elements.totalProfit.style.color = totalProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
     
-    // ROI
-    const totalStaked = bets.reduce((sum, bet) => sum + (parseFloat(bet.amount) || 0), 0);
+    const totalStaked = bets.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0);
     const roi = totalStaked > 0 ? (totalProfit / totalStaked) * 100 : 0;
     elements.roiValue.textContent = `${roi.toFixed(1)}%`;
     elements.roiValue.style.color = roi >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
     
-    // Winrate
     const winrate = completedBets.length > 0 ? (wonBets.length / completedBets.length) * 100 : 0;
     elements.winrateValue.textContent = `${winrate.toFixed(1)}%`;
     
-    // Средний КФ
-    const avgCoef = bets.length > 0 
-        ? bets.reduce((sum, bet) => sum + (parseFloat(bet.totalCoef) || 0), 0) / bets.length 
-        : 0;
+    const avgCoef = bets.length > 0 ? bets.reduce((sum, b) => sum + (parseFloat(b.totalCoef) || 0), 0) / bets.length : 0;
     elements.avgCoef.textContent = avgCoef.toFixed(2);
 }
 
@@ -948,39 +1257,30 @@ async function updateStatistics() {
 // Обработчики событий
 // ========================================
 
-async function handleTableActions(e) {
+async function handleBetActions(e) {
     const button = e.target.closest('button[data-action]');
     if (!button) return;
     
     const action = button.dataset.action;
     const id = parseInt(button.dataset.id);
     
-    console.log('Действие:', action, 'ID:', id);
-    
-    switch (action) {
-        case 'view':
-            const betForView = await getBetById(id);
-            if (betForView?.image) {
-                openImageViewer(betForView.image);
+    if (action === 'view') {
+        const bet = await getBetById(id);
+        if (bet?.image) openImageViewer(bet.image);
+    } else if (action === 'edit') {
+        await openEditBetModal(id);
+    } else if (action === 'delete') {
+        if (confirm('Удалить ставку?')) {
+            try {
+                await deleteBet(id);
+                showToast('Удалено', 'success');
+                await renderBets();
+                await renderProfiles();
+                await updateStatistics();
+            } catch (error) {
+                showToast('Ошибка', 'error');
             }
-            break;
-            
-        case 'edit':
-            await openEditModal(id);
-            break;
-            
-        case 'delete':
-            if (confirm('Удалить эту ставку?')) {
-                try {
-                    await deleteBet(id);
-                    showToast('Ставка удалена', 'success');
-                    await renderBets();
-                    await updateStatistics();
-                } catch (error) {
-                    showToast('Ошибка удаления', 'error');
-                }
-            }
-            break;
+        }
     }
 }
 
@@ -995,50 +1295,40 @@ async function handleImageChange(e) {
                 <span class="remove-image" onclick="removeImage()"><i class="fas fa-trash"></i> Удалить</span>
             `;
         } catch (error) {
-            showToast('Ошибка загрузки изображения', 'error');
+            showToast('Ошибка загрузки', 'error');
         }
     }
 }
 
 async function syncData() {
-    const syncBtn = elements.syncBtn;
-    syncBtn.disabled = true;
-    syncBtn.querySelector('i').classList.add('fa-spin');
-    
+    elements.syncBtn.disabled = true;
+    elements.syncBtn.querySelector('i').classList.add('fa-spin');
     elements.connectionStatus.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i><span>Синхронизация...</span>';
     elements.connectionStatus.className = 'connection-status syncing';
     
     try {
+        await renderProfiles();
         await renderBets();
         await updateStatistics();
-        showToast('Данные синхронизированы', 'success');
+        showToast('Синхронизировано', 'success');
     } catch (error) {
         showToast('Ошибка синхронизации', 'error');
     } finally {
-        syncBtn.disabled = false;
-        syncBtn.querySelector('i').classList.remove('fa-spin');
+        elements.syncBtn.disabled = false;
+        elements.syncBtn.querySelector('i').classList.remove('fa-spin');
         updateConnectionStatus();
     }
 }
 
-// ========================================
-// Обработка изменения размера окна
-// ========================================
-
 function handleResize() {
     const hasBets = elements.betsTableBody.children.length > 0;
-    
     if (!hasBets) return;
     
     if (window.innerWidth >= 900) {
-        if (elements.tableWrapper) {
-            elements.tableWrapper.style.display = 'block';
-        }
+        if (elements.tableWrapper) elements.tableWrapper.style.display = 'block';
         elements.mobileCards.style.display = 'none';
     } else {
-        if (elements.tableWrapper) {
-            elements.tableWrapper.style.display = 'none';
-        }
+        if (elements.tableWrapper) elements.tableWrapper.style.display = 'none';
         elements.mobileCards.style.display = 'flex';
     }
 }
@@ -1049,88 +1339,84 @@ function handleResize() {
 
 async function init() {
     try {
-        console.log('Инициализация приложения...');
-        
-        // Инициализация локального кэша
         await initLocalDB();
-        console.log('Локальная БД инициализирована');
         
-        // Проверка конфигурации
         if (!isConfigured) {
-            console.warn('Supabase не настроен. Работа в локальном режиме.');
-            showToast('Работа в локальном режиме. Настройте Supabase для синхронизации.', 'warning');
+            showToast('Локальный режим. Настройте Supabase для синхронизации.', 'warning');
         }
         
-        // Обновление статуса подключения
         updateConnectionStatus();
         
-        // Загрузка и отображение данных
+        await renderProfiles();
         await renderBets();
         await updateStatistics();
         
-        // Привязка обработчиков
-        elements.addBetBtn.addEventListener('click', openAddModal);
+        // Обработчики
+        elements.addBetBtn.addEventListener('click', openAddBetModal);
+        elements.emptyAddBtn?.addEventListener('click', openAddBetModal);
         elements.syncBtn.addEventListener('click', syncData);
-        elements.closeModal.addEventListener('click', closeModal);
-        elements.cancelBtn.addEventListener('click', closeModal);
-        elements.addEventBtn.addEventListener('click', () => {
-            elements.eventsList.appendChild(createEventCard());
+        elements.manageProfilesBtn.addEventListener('click', openProfilesModal);
+        
+        elements.closeModal.addEventListener('click', closeBetModal);
+        elements.cancelBtn.addEventListener('click', closeBetModal);
+        elements.addEventBtn.addEventListener('click', () => elements.eventsList.appendChild(createEventCard()));
+        elements.betForm.addEventListener('submit', handleBetFormSubmit);
+        
+        elements.closeProfilesModal.addEventListener('click', closeProfilesModal);
+        elements.cancelProfileBtn.addEventListener('click', resetProfileForm);
+        elements.profileForm.addEventListener('submit', handleProfileFormSubmit);
+        
+        elements.iconPicker.querySelectorAll('.icon-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                elements.iconPicker.querySelectorAll('.icon-option').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+                elements.profileIcon.value = opt.dataset.icon;
+            });
         });
-        elements.betForm.addEventListener('submit', handleFormSubmit);
+        
         elements.statusFilter.addEventListener('change', renderBets);
-        elements.betsTableBody.addEventListener('click', handleTableActions);
-        elements.mobileCards.addEventListener('click', handleTableActions);
+        elements.betsTableBody.addEventListener('click', handleBetActions);
+        elements.mobileCards.addEventListener('click', handleBetActions);
         elements.closeViewer.addEventListener('click', closeImageViewer);
         elements.betImage.addEventListener('change', handleImageChange);
         
-        // Обработка изменения размера окна
         window.addEventListener('resize', handleResize);
         
-        // Закрытие модальных окон
-        elements.betModal.addEventListener('click', (e) => {
-            if (e.target === elements.betModal) closeModal();
-        });
-        elements.imageViewer.addEventListener('click', (e) => {
-            if (e.target === elements.imageViewer) closeImageViewer();
-        });
+        elements.betModal.addEventListener('click', (e) => { if (e.target === elements.betModal) closeBetModal(); });
+        elements.profilesModal.addEventListener('click', (e) => { if (e.target === elements.profilesModal) closeProfilesModal(); });
+        elements.imageViewer.addEventListener('click', (e) => { if (e.target === elements.imageViewer) closeImageViewer(); });
         
-        // Закрытие по Escape
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                closeModal();
+                closeBetModal();
+                closeProfilesModal();
                 closeImageViewer();
             }
         });
         
-        // Отслеживание онлайн/офлайн статуса
         window.addEventListener('online', () => {
             isOnline = true;
             updateConnectionStatus();
-            showToast('Подключение восстановлено', 'success');
+            showToast('Онлайн', 'success');
             syncData();
         });
         
         window.addEventListener('offline', () => {
             isOnline = false;
             updateConnectionStatus();
-            showToast('Нет подключения к интернету', 'warning');
+            showToast('Офлайн', 'warning');
         });
         
-        // Скрываем загрузку
         elements.loadingOverlay.classList.add('hidden');
-        
-        console.log('BetTracker инициализирован успешно');
         
     } catch (error) {
         console.error('Ошибка инициализации:', error);
         elements.loadingOverlay.innerHTML = `
             <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: var(--accent-red);"></i>
-            <p>Ошибка загрузки приложения</p>
-            <p style="font-size: 0.8rem; color: var(--text-secondary);">${error.message}</p>
-            <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 20px;">Перезагрузить</button>
+            <p>Ошибка загрузки</p>
+            <button class="btn btn-primary" onclick="location.reload()">Перезагрузить</button>
         `;
     }
 }
 
-// Запуск
 document.addEventListener('DOMContentLoaded', init);
