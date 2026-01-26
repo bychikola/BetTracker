@@ -1331,3 +1331,32 @@ textarea.form-control {
         -webkit-text-fill-color: #000000 !important;
     }
 }
+/* ========================================
+   Метка профиля в ставках
+   ======================================== */
+   .profile-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.profile-badge i {
+    font-size: 0.6rem;
+}
+
+/* Адаптация для мобильных карточек */
+.bet-card-header > div {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+/* Стиль для таблицы - метка под датой */
+.bets-table td:first-child {
+    min-width: 120px;
+}
