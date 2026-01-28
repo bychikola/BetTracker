@@ -1,6 +1,6 @@
 /**
  * BetTracker - Приложение для учета ставок на спорт
- * С поддержкой профилей для разных стратегий
+ * С поддержкой профилей и генерацией инфографики
  */
 
 // ========================================
@@ -9,7 +9,6 @@
 
 const SUPABASE_URL = 'https://jmpgnclsmjtkxhgsybks.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptcGduY2xzbWp0a3hoZ3N5YmtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5NjAwNDIsImV4cCI6MjA4NDUzNjA0Mn0.yBcfMVJujxelHXrI8TFCp2G7cjcposNkwYxVORXrSZk';
-
 
 const isConfigured = !SUPABASE_URL.includes('YOUR_PROJECT_ID');
 
@@ -158,56 +157,15 @@ async function getFromLocalCache(storeName) {
     });
 }
 
-async function addToLocalCache(storeName, item) {
-    if (!localDb) return item;
-    
-    return new Promise((resolve, reject) => {
-        const transaction = localDb.transaction([storeName], 'readwrite');
-        const store = transaction.objectStore(storeName);
-        const request = store.add(item);
-        
-        request.onsuccess = () => {
-            item.id = request.result;
-            resolve(item);
-        };
-        request.onerror = () => reject(request.error);
-    });
-}
-
-async function updateInLocalCache(storeName, item) {
-    if (!localDb) return item;
-    
-    return new Promise((resolve, reject) => {
-        const transaction = localDb.transaction([storeName], 'readwrite');
-        const store = transaction.objectStore(storeName);
-        const request = store.put(item);
-        
-        request.onsuccess = () => resolve(item);
-        request.onerror = () => reject(request.error);
-    });
-}
-
-async function deleteFromLocalCache(storeName, id) {
-    if (!localDb) return;
-    
-    return new Promise((resolve, reject) => {
-        const transaction = localDb.transaction([storeName], 'readwrite');
-        const store = transaction.objectStore(storeName);
-        const request = store.delete(id);
-        
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-    });
-}
-
 // ========================================
 // Состояние приложения
 // ========================================
 
 let currentProfileId = 'all';
 let profiles = [];
-let allBetsCache = []; // Кэш ВСЕХ ставок для подсчёта
+let allBetsCache = [];
 let isOnline = navigator.onLine;
+let currentShareBet = null;
 
 // ========================================
 // API функции - Профили
@@ -242,16 +200,18 @@ async function getAllProfiles() {
 }
 
 async function getProfileById(id) {
+    const cached = profiles.find(p => p.id === id);
+    if (cached) return cached;
+    
     if (!isConfigured) {
-        const cached = await getFromLocalCache('profiles');
-        return cached.find(p => p.id === id) || null;
+        const localProfiles = await getFromLocalCache('profiles');
+        return localProfiles.find(p => p.id === id) || null;
     }
 
     try {
         const profile = await supabase.getById('profiles', id);
         return formatProfileFromDB(profile);
     } catch (error) {
-        console.error('Ошибка получения профиля:', error);
         return null;
     }
 }
@@ -265,12 +225,14 @@ async function createProfile(profile) {
     };
 
     if (!isConfigured) {
+        const localProfiles = await getFromLocalCache('profiles');
         const newProfile = {
             ...dbProfile,
             id: Date.now(),
             created_at: new Date().toISOString()
         };
-        await addToLocalCache('profiles', newProfile);
+        localProfiles.push(newProfile);
+        await saveToLocalCache('profiles', localProfiles);
         return newProfile;
     }
 
@@ -278,7 +240,6 @@ async function createProfile(profile) {
         const result = await supabase.create('profiles', dbProfile);
         return formatProfileFromDB(result);
     } catch (error) {
-        console.error('Ошибка создания профиля:', error);
         throw error;
     }
 }
@@ -293,33 +254,37 @@ async function updateProfile(profile) {
     };
 
     if (!isConfigured) {
-        const updated = { ...profile, ...dbProfile };
-        await updateInLocalCache('profiles', updated);
-        return updated;
+        const localProfiles = await getFromLocalCache('profiles');
+        const index = localProfiles.findIndex(p => p.id === profile.id);
+        if (index !== -1) {
+            localProfiles[index] = { ...localProfiles[index], ...dbProfile };
+            await saveToLocalCache('profiles', localProfiles);
+        }
+        return { ...profile, ...dbProfile };
     }
 
     try {
         const result = await supabase.update('profiles', profile.id, dbProfile);
         return formatProfileFromDB(result);
     } catch (error) {
-        console.error('Ошибка обновления профиля:', error);
         throw error;
     }
 }
 
 async function deleteProfile(id) {
     if (!isConfigured) {
-        await deleteFromLocalCache('profiles', id);
-        const bets = await getFromLocalCache('bets');
-        const filteredBets = bets.filter(b => b.profile_id !== id);
-        await saveToLocalCache('bets', filteredBets);
+        const localProfiles = await getFromLocalCache('profiles');
+        const filtered = localProfiles.filter(p => p.id !== id);
+        await saveToLocalCache('profiles', filtered);
+        
+        allBetsCache = allBetsCache.filter(b => b.profile_id !== id);
+        await saveToLocalCache('bets', allBetsCache);
         return;
     }
 
     try {
         await supabase.delete('profiles', id);
     } catch (error) {
-        console.error('Ошибка удаления профиля:', error);
         throw error;
     }
 }
@@ -338,15 +303,11 @@ function formatBetFromDB(bet) {
         amount: parseFloat(bet.amount) || 0,
         status: bet.status || 'pending',
         type: bet.type || 'single',
-        image: bet.image || null,
         profile_id: bet.profile_id || null,
         date: bet.created_at || new Date().toISOString()
     };
 }
 
-/**
- * Загрузка ВСЕХ ставок (для подсчёта в профилях)
- */
 async function loadAllBets() {
     if (!isConfigured) {
         allBetsCache = await getFromLocalCache('bets');
@@ -359,37 +320,28 @@ async function loadAllBets() {
         await saveToLocalCache('bets', allBetsCache);
         return allBetsCache;
     } catch (error) {
-        console.error('Ошибка загрузки всех ставок:', error);
         allBetsCache = await getFromLocalCache('bets');
         return allBetsCache;
     }
 }
 
-/**
- * Получение ставок с фильтрами (для отображения)
- */
 async function getBetsFiltered(statusFilter = 'all') {
-    // Используем кэш всех ставок
     let bets = [...allBetsCache];
     
-    // Фильтр по профилю
     if (currentProfileId !== 'all') {
         bets = bets.filter(b => b.profile_id === parseInt(currentProfileId));
     }
     
-    // Фильтр по статусу
     if (statusFilter !== 'all') {
         bets = bets.filter(b => b.status === statusFilter);
     }
     
-    // Сортировка по дате
     bets.sort((a, b) => new Date(b.date) - new Date(a.date));
     
     return bets;
 }
 
 async function getBetById(id) {
-    // Сначала ищем в кэше
     const cached = allBetsCache.find(b => b.id === id);
     if (cached) return cached;
     
@@ -402,7 +354,6 @@ async function getBetById(id) {
         const bet = await supabase.getById('bets', id);
         return formatBetFromDB(bet);
     } catch (error) {
-        console.error('Ошибка получения ставки:', error);
         return null;
     }
 }
@@ -416,7 +367,6 @@ async function addBet(bet) {
         amount: bet.amount,
         status: bet.status,
         type: bet.type,
-        image: bet.image || null,
         profile_id: profileId
     };
 
@@ -439,7 +389,6 @@ async function addBet(bet) {
         allBetsCache.unshift(newBet);
         return newBet;
     } catch (error) {
-        console.error('Ошибка добавления ставки:', error);
         throw error;
     }
 }
@@ -451,7 +400,6 @@ async function updateBet(bet) {
         amount: bet.amount,
         status: bet.status,
         type: bet.type,
-        image: bet.image,
         profile_id: bet.profile_id,
         updated_at: new Date().toISOString()
     };
@@ -476,7 +424,6 @@ async function updateBet(bet) {
         
         return updatedBet;
     } catch (error) {
-        console.error('Ошибка обновления ставки:', error);
         throw error;
     }
 }
@@ -492,48 +439,8 @@ async function deleteBet(id) {
         await supabase.delete('bets', id);
         allBetsCache = allBetsCache.filter(b => b.id !== id);
     } catch (error) {
-        console.error('Ошибка удаления ставки:', error);
         throw error;
     }
-}
-
-// ========================================
-// Работа с изображениями
-// ========================================
-
-function fileToBase64(file, maxWidth = 800) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        
-        reader.onload = (e) => {
-            const img = new Image();
-            
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                
-                if (width > maxWidth) {
-                    height = (height * maxWidth) / width;
-                    width = maxWidth;
-                }
-                
-                canvas.width = width;
-                canvas.height = height;
-                
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                resolve(canvas.toDataURL('image/jpeg', 0.7));
-            };
-            
-            img.onerror = reject;
-            img.src = e.target.result;
-        };
-        
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
 }
 
 // ========================================
@@ -552,16 +459,20 @@ const elements = {
     closeModal: document.getElementById('closeModal'),
     cancelBtn: document.getElementById('cancelBtn'),
     addEventBtn: document.getElementById('addEventBtn'),
-    closeViewer: document.getElementById('closeViewer'),
     submitBtn: document.getElementById('submitBtn'),
     
     closeProfilesModal: document.getElementById('closeProfilesModal'),
     cancelProfileBtn: document.getElementById('cancelProfileBtn'),
     
+    closeShareModal: document.getElementById('closeShareModal'),
+    downloadShareBtn: document.getElementById('downloadShareBtn'),
+    copyShareBtn: document.getElementById('copyShareBtn'),
+    sharePreview: document.getElementById('sharePreview'),
+    shareCanvas: document.getElementById('shareCanvas'),
+    
     betModal: document.getElementById('betModal'),
     profilesModal: document.getElementById('profilesModal'),
-    imageViewer: document.getElementById('imageViewer'),
-    viewerImage: document.getElementById('viewerImage'),
+    shareModal: document.getElementById('shareModal'),
     
     betForm: document.getElementById('betForm'),
     betId: document.getElementById('betId'),
@@ -569,8 +480,6 @@ const elements = {
     totalCoef: document.getElementById('totalCoef'),
     betAmount: document.getElementById('betAmount'),
     betStatus: document.getElementById('betStatus'),
-    betImage: document.getElementById('betImage'),
-    imagePreview: document.getElementById('imagePreview'),
     modalTitle: document.getElementById('modalTitle'),
     
     profileForm: document.getElementById('profileForm'),
@@ -648,20 +557,14 @@ function updateConnectionStatus() {
 }
 
 // ========================================
-// Вспомогательные функции для профилей
+// Вспомогательные функции
 // ========================================
 
-/**
- * Получить профиль по ID из кэша
- */
 function getProfileFromCache(profileId) {
     if (!profileId) return null;
     return profiles.find(p => p.id === profileId) || null;
 }
 
-/**
- * Создать HTML-метку профиля
- */
 function createProfileBadge(profileId) {
     const profile = getProfileFromCache(profileId);
     
@@ -676,6 +579,346 @@ function createProfileBadge(profileId) {
     `;
 }
 
+function calculateProfit(bet) {
+    const amount = parseFloat(bet.amount) || 0;
+    const totalCoef = parseFloat(bet.totalCoef) || 0;
+    
+    switch (bet.status) {
+        case 'win': return (amount * totalCoef) - amount;
+        case 'lose': return -amount;
+        default: return 0;
+    }
+}
+
+function formatDate(isoString) {
+    if (!isoString) return 'Н/Д';
+    try {
+        return new Date(isoString).toLocaleDateString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (e) {
+        return 'Н/Д';
+    }
+}
+
+function formatDateFull(isoString) {
+    if (!isoString) return 'Н/Д';
+    try {
+        return new Date(isoString).toLocaleDateString('ru-RU', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (e) {
+        return 'Н/Д';
+    }
+}
+
+function getStatusText(status) {
+    return { pending: 'Ожидание', win: 'Выигрыш', lose: 'Проигрыш', return: 'Возврат' }[status] || status;
+}
+
+// ========================================
+// Генерация инфографики
+// ========================================
+
+function generateShareCard(bet) {
+    const profile = getProfileFromCache(bet.profile_id);
+    const profit = calculateProfit(bet);
+    const profitClass = profit < 0 ? 'negative' : '';
+    const profitText = profit >= 0 ? `+${profit.toFixed(0)}₽` : `${profit.toFixed(0)}₽`;
+    
+    const eventsHtml = bet.events.map(event => `
+        <div class="share-event">
+            <div class="share-event-name">${event.name}</div>
+            <div class="share-event-market">
+                <span class="share-event-market-name">${event.market}</span>
+                <span class="share-event-coef">${event.coef.toFixed(2)}</span>
+            </div>
+        </div>
+    `).join('');
+    
+    return `
+        <div class="share-card" id="shareCardContent">
+            <div class="share-card-header">
+                <div class="share-card-logo">
+                    <i class="fas fa-chart-line"></i>
+                    BetTracker
+                </div>
+                <div class="share-card-date">${formatDateFull(bet.date)}</div>
+            </div>
+            
+            <div class="share-card-type">
+                ${bet.type === 'express' ? `Экспресс (${bet.events.length} события)` : 'Ординар'}
+            </div>
+            
+            <div class="share-card-events">
+                ${eventsHtml}
+            </div>
+            
+            <div class="share-card-stats">
+                <div class="share-stat">
+                    <div class="share-stat-label">Коэффициент</div>
+                    <div class="share-stat-value coef">${bet.totalCoef.toFixed(2)}</div>
+                </div>
+                <div class="share-stat">
+                    <div class="share-stat-label">Сумма</div>
+                    <div class="share-stat-value amount">${bet.amount.toFixed(0)}₽</div>
+                </div>
+                <div class="share-stat">
+                    <div class="share-stat-label">Профит</div>
+                    <div class="share-stat-value profit ${profitClass}">${profitText}</div>
+                </div>
+            </div>
+            
+            <div class="share-card-status">
+                <span class="share-status-badge ${bet.status}">${getStatusText(bet.status)}</span>
+            </div>
+            
+            <div class="share-card-footer">
+                <div class="share-card-profile">
+                    ${profile ? `<i class="fas ${profile.icon}" style="color: ${profile.color}"></i> ${profile.name}` : ''}
+                </div>
+                <div class="share-card-watermark">bettracker.app</div>
+            </div>
+        </div>
+    `;
+}
+
+async function openShareModal(betId) {
+    const bet = await getBetById(betId);
+    if (!bet) {
+        showToast('Ставка не найдена', 'error');
+        return;
+    }
+    
+    currentShareBet = bet;
+    elements.sharePreview.innerHTML = generateShareCard(bet);
+    elements.shareModal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeShareModal() {
+    elements.shareModal.classList.remove('active');
+    document.body.style.overflow = '';
+    currentShareBet = null;
+}
+
+async function downloadShareImage() {
+    if (!currentShareBet) return;
+    
+    const shareCard = document.getElementById('shareCardContent');
+    if (!shareCard) return;
+    
+    try {
+        showToast('Генерация изображения...', 'info');
+        
+        // Используем html2canvas-подобный подход через Canvas API
+        const canvas = elements.shareCanvas;
+        const ctx = canvas.getContext('2d');
+        
+        // Размеры
+        const width = 400;
+        const padding = 24;
+        const eventHeight = 70;
+        const eventsCount = currentShareBet.events.length;
+        const height = 280 + (eventsCount * eventHeight);
+        
+        canvas.width = width * 2; // Для лучшего качества
+        canvas.height = height * 2;
+        ctx.scale(2, 2);
+        
+        // Фон с градиентом
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, '#1a1a2e');
+        gradient.addColorStop(0.5, '#16213e');
+        gradient.addColorStop(1, '#0f3460');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Шрифт
+        ctx.textBaseline = 'top';
+        
+        // Заголовок
+        ctx.fillStyle = '#3d5afe';
+        ctx.font = 'bold 20px Segoe UI, sans-serif';
+        ctx.fillText('📊 BetTracker', padding, padding);
+        
+        // Дата
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.font = '12px Segoe UI, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(formatDateFull(currentShareBet.date), width - padding, padding + 4);
+        ctx.textAlign = 'left';
+        
+        // Тип ставки
+        ctx.fillStyle = 'rgba(61, 90, 254, 0.3)';
+        roundRect(ctx, padding, 55, 120, 26, 13);
+        ctx.fill();
+        ctx.fillStyle = '#a8b4ff';
+        ctx.font = '11px Segoe UI, sans-serif';
+        const typeText = currentShareBet.type === 'express' ? `ЭКСПРЕСС (${eventsCount})` : 'ОРДИНАР';
+        ctx.fillText(typeText, padding + 12, 62);
+        
+        // События
+        let yPos = 95;
+        currentShareBet.events.forEach(event => {
+            // Фон события
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            roundRect(ctx, padding, yPos, width - padding * 2, 60, 8);
+            ctx.fill();
+            
+            // Левая полоска
+            ctx.fillStyle = '#3d5afe';
+            ctx.fillRect(padding, yPos, 3, 60);
+            
+            // Название
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px Segoe UI, sans-serif';
+            ctx.fillText(truncateText(ctx, event.name, width - 120), padding + 14, yPos + 12);
+            
+            // Маркет
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.font = '12px Segoe UI, sans-serif';
+            ctx.fillText(event.market, padding + 14, yPos + 35);
+            
+            // Коэффициент
+            ctx.fillStyle = 'rgba(61, 90, 254, 0.3)';
+            roundRect(ctx, width - padding - 55, yPos + 30, 45, 22, 5);
+            ctx.fill();
+            ctx.fillStyle = '#a8b4ff';
+            ctx.font = 'bold 12px Segoe UI, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(event.coef.toFixed(2), width - padding - 32, yPos + 35);
+            ctx.textAlign = 'left';
+            
+            yPos += eventHeight;
+        });
+        
+        // Статистика
+        yPos += 10;
+        const statWidth = (width - padding * 2 - 20) / 3;
+        const stats = [
+            { label: 'КОЭФФИЦИЕНТ', value: currentShareBet.totalCoef.toFixed(2), color: '#3d5afe' },
+            { label: 'СУММА', value: `${currentShareBet.amount.toFixed(0)}₽`, color: '#ffffff' },
+            { label: 'ПРОФИТ', value: calculateProfit(currentShareBet) >= 0 ? `+${calculateProfit(currentShareBet).toFixed(0)}₽` : `${calculateProfit(currentShareBet).toFixed(0)}₽`, color: calculateProfit(currentShareBet) >= 0 ? '#00e676' : '#ff1744' }
+        ];
+        
+        stats.forEach((stat, i) => {
+            const x = padding + i * (statWidth + 10);
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            roundRect(ctx, x, yPos, statWidth, 55, 8);
+            ctx.fill();
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '9px Segoe UI, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(stat.label, x + statWidth / 2, yPos + 10);
+            
+            ctx.fillStyle = stat.color;
+            ctx.font = 'bold 16px Segoe UI, sans-serif';
+            ctx.fillText(stat.value, x + statWidth / 2, yPos + 28);
+            ctx.textAlign = 'left';
+        });
+        
+        // Статус
+        yPos += 70;
+        const statusColors = {
+            pending: { bg: 'linear-gradient(135deg, #ffc400, #ff9800)', text: '#000' },
+            win: { bg: '#00e676', text: '#000' },
+            lose: { bg: '#ff1744', text: '#fff' },
+            return: { bg: '#3d5afe', text: '#fff' }
+        };
+        const statusColor = statusColors[currentShareBet.status] || statusColors.pending;
+        
+        ctx.fillStyle = currentShareBet.status === 'win' ? '#00e676' : 
+                        currentShareBet.status === 'lose' ? '#ff1744' : 
+                        currentShareBet.status === 'return' ? '#3d5afe' : '#ffc400';
+        const statusWidth = 120;
+        roundRect(ctx, (width - statusWidth) / 2, yPos, statusWidth, 35, 17);
+        ctx.fill();
+        
+        ctx.fillStyle = currentShareBet.status === 'lose' ? '#fff' : '#000';
+        ctx.font = 'bold 12px Segoe UI, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(getStatusText(currentShareBet.status).toUpperCase(), width / 2, yPos + 11);
+        ctx.textAlign = 'left';
+        
+        // Футер
+        yPos += 50;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(padding, yPos, width - padding * 2, 1);
+        
+        yPos += 15;
+        const profile = getProfileFromCache(currentShareBet.profile_id);
+        if (profile) {
+            ctx.fillStyle = profile.color;
+            ctx.font = '12px Segoe UI, sans-serif';
+            ctx.fillText(`● ${profile.name}`, padding, yPos);
+        }
+        
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.font = '10px Segoe UI, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('bettracker.app', width - padding, yPos);
+        ctx.textAlign = 'left';
+        
+        // Скачивание
+        const link = document.createElement('a');
+        link.download = `bet-${currentShareBet.id}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        
+        showToast('Изображение скачано!', 'success');
+        
+    } catch (error) {
+        console.error('Ошибка генерации:', error);
+        showToast('Ошибка генерации изображения', 'error');
+    }
+}
+
+// Вспомогательные функции для Canvas
+function roundRect(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+}
+
+function truncateText(ctx, text, maxWidth) {
+    let truncated = text;
+    while (ctx.measureText(truncated).width > maxWidth && truncated.length > 0) {
+        truncated = truncated.slice(0, -1);
+    }
+    return truncated.length < text.length ? truncated + '...' : truncated;
+}
+
+async function copyShareImage() {
+    if (!currentShareBet) return;
+    
+    try {
+        // Генерируем изображение
+        await downloadShareImage();
+        showToast('Изображение скопировано!', 'success');
+    } catch (error) {
+        showToast('Ошибка копирования', 'error');
+    }
+}
+
 // ========================================
 // Рендеринг профилей
 // ========================================
@@ -683,7 +926,6 @@ function createProfileBadge(profileId) {
 async function renderProfiles() {
     profiles = await getAllProfiles();
     
-    // Используем кэш ВСЕХ ставок для подсчёта
     const totalBetsCount = allBetsCache.length;
     
     let html = `
@@ -697,7 +939,6 @@ async function renderProfiles() {
     `;
     
     profiles.forEach(profile => {
-        // Считаем ставки для КАЖДОГО профиля из общего кэша
         const profileBetsCount = allBetsCache.filter(b => b.profile_id === profile.id).length;
         const isActive = currentProfileId === profile.id.toString();
         
@@ -714,7 +955,6 @@ async function renderProfiles() {
     
     elements.profilesList.innerHTML = html;
     
-    // Обработчики кликов
     elements.profilesList.querySelectorAll('.profile-card').forEach(card => {
         card.addEventListener('click', async () => {
             currentProfileId = card.dataset.profileId;
@@ -761,7 +1001,6 @@ async function renderProfilesManageList() {
     
     elements.profilesManageList.innerHTML = html;
     
-    // Обработчики
     elements.profilesManageList.querySelectorAll('button[data-action]').forEach(btn => {
         btn.addEventListener('click', handleProfileAction);
     });
@@ -798,7 +1037,6 @@ async function handleProfileAction(e) {
             try {
                 await deleteProfile(id);
                 
-                // Удаляем связанные ставки из кэша
                 allBetsCache = allBetsCache.filter(b => b.profile_id !== id);
                 
                 if (currentProfileId === id.toString()) {
@@ -818,11 +1056,10 @@ async function handleProfileAction(e) {
 }
 
 // ========================================
-// Управление событиями в форме ставки
+// Управление событиями в форме
 // ========================================
 
 let eventCounter = 0;
-let currentImageBase64 = null;
 
 function createEventCard(event = null) {
     const eventId = eventCounter++;
@@ -907,8 +1144,6 @@ function openAddBetModal() {
     elements.eventsList.innerHTML = '';
     elements.eventsList.appendChild(createEventCard());
     elements.totalCoef.value = '1.00';
-    elements.imagePreview.innerHTML = '';
-    currentImageBase64 = null;
     elements.betModal.classList.add('active');
     document.body.style.overflow = 'hidden';
 }
@@ -934,18 +1169,6 @@ async function openEditBetModal(id) {
         elements.eventsList.appendChild(createEventCard());
     }
     calculateTotalCoef();
-    
-    elements.betImage.value = '';
-    currentImageBase64 = bet.image || null;
-    
-    if (bet.image) {
-        elements.imagePreview.innerHTML = `
-            <img src="${bet.image}" alt="Фото" onclick="openImageViewer(this.src)">
-            <span class="remove-image" onclick="removeImage()"><i class="fas fa-trash"></i> Удалить</span>
-        `;
-    } else {
-        elements.imagePreview.innerHTML = '';
-    }
     
     elements.betModal.classList.add('active');
     document.body.style.overflow = 'hidden';
@@ -981,25 +1204,6 @@ function resetProfileForm() {
     });
 }
 
-function openImageViewer(imageSrc) {
-    elements.viewerImage.src = imageSrc;
-    elements.imageViewer.classList.add('active');
-}
-
-function closeImageViewer() {
-    elements.imageViewer.classList.remove('active');
-    elements.viewerImage.src = '';
-}
-
-function removeImage() {
-    currentImageBase64 = null;
-    elements.imagePreview.innerHTML = '';
-    elements.betImage.value = '';
-}
-
-window.openImageViewer = openImageViewer;
-window.removeImage = removeImage;
-
 // ========================================
 // Обработка форм
 // ========================================
@@ -1027,18 +1231,12 @@ async function handleBetFormSubmit(e) {
             return;
         }
         
-        const imageFile = elements.betImage.files[0];
-        if (imageFile) {
-            currentImageBase64 = await fileToBase64(imageFile);
-        }
-        
         const bet = {
             events,
             totalCoef,
             amount,
             status,
-            type: events.length > 1 ? 'express' : 'single',
-            image: currentImageBase64
+            type: events.length > 1 ? 'express' : 'single'
         };
         
         if (betId) {
@@ -1109,36 +1307,6 @@ async function handleProfileFormSubmit(e) {
 // Отображение ставок
 // ========================================
 
-function calculateProfit(bet) {
-    const amount = parseFloat(bet.amount) || 0;
-    const totalCoef = parseFloat(bet.totalCoef) || 0;
-    
-    switch (bet.status) {
-        case 'win': return (amount * totalCoef) - amount;
-        case 'lose': return -amount;
-        default: return 0;
-    }
-}
-
-function formatDate(isoString) {
-    if (!isoString) return 'Н/Д';
-    try {
-        return new Date(isoString).toLocaleDateString('ru-RU', {
-            day: '2-digit',
-            month: '2-digit',
-            year: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    } catch (e) {
-        return 'Н/Д';
-    }
-}
-
-function getStatusText(status) {
-    return { pending: 'Ожидание', win: 'Выигрыш', lose: 'Проигрыш', return: 'Возврат' }[status] || status;
-}
-
 function createBetRow(bet) {
     const profit = calculateProfit(bet);
     const profitClass = profit > 0 ? 'profit-positive' : profit < 0 ? 'profit-negative' : 'profit-neutral';
@@ -1148,11 +1316,10 @@ function createBetRow(bet) {
     const eventsHtml = events.map(e => `
         <div class="event-item">
             <span class="event-name">${e.name || ''}</span>
-            <span class="event-market">${e.market || ''} | ${e.coef || 0}</span>
+            <span class="event-market">${e.market || ''} @ ${e.coef || 0}</span>
         </div>
     `).join('') || '<em>Нет событий</em>';
     
-    // Показываем метку профиля только в режиме "Все профили"
     const profileBadge = currentProfileId === 'all' ? createProfileBadge(bet.profile_id) : '';
     
     const row = document.createElement('tr');
@@ -1169,9 +1336,9 @@ function createBetRow(bet) {
         <td><span class="status-badge status-${bet.status}">${getStatusText(bet.status)}</span></td>
         <td class="actions-cell">
             <div class="actions-wrapper">
-                ${bet.image ? `<button class="btn btn-icon view" data-action="view" data-id="${bet.id}"><i class="fas fa-camera"></i></button>` : ''}
-                <button class="btn btn-icon edit" data-action="edit" data-id="${bet.id}"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-icon delete" data-action="delete" data-id="${bet.id}"><i class="fas fa-trash"></i></button>
+                <button class="btn btn-icon share" data-action="share" data-id="${bet.id}" title="Поделиться"><i class="fas fa-share-alt"></i></button>
+                <button class="btn btn-icon edit" data-action="edit" data-id="${bet.id}" title="Редактировать"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-icon delete" data-action="delete" data-id="${bet.id}" title="Удалить"><i class="fas fa-trash"></i></button>
             </div>
         </td>
     `;
@@ -1187,11 +1354,10 @@ function createBetCard(bet) {
     const eventsHtml = events.map(e => `
         <div class="bet-card-event">
             <div class="bet-card-event-name">${e.name || ''}</div>
-            <div class="bet-card-event-market">${e.market || ''} | ${e.coef || 0}</div>
+            <div class="bet-card-event-market">${e.market || ''} @ ${e.coef || 0}</div>
         </div>
     `).join('') || '<em>Нет событий</em>';
     
-    // Показываем метку профиля только в режиме "Все профили"
     const profileBadge = currentProfileId === 'all' ? createProfileBadge(bet.profile_id) : '';
     
     const card = document.createElement('div');
@@ -1222,7 +1388,7 @@ function createBetCard(bet) {
         <div class="bet-card-footer">
             <span class="status-badge status-${bet.status}">${getStatusText(bet.status)}</span>
             <div class="bet-card-actions">
-                ${bet.image ? `<button class="btn btn-icon view" data-action="view" data-id="${bet.id}"><i class="fas fa-camera"></i></button>` : ''}
+                <button class="btn btn-icon share" data-action="share" data-id="${bet.id}"><i class="fas fa-share-alt"></i></button>
                 <button class="btn btn-icon edit" data-action="edit" data-id="${bet.id}"><i class="fas fa-edit"></i></button>
                 <button class="btn btn-icon delete" data-action="delete" data-id="${bet.id}"><i class="fas fa-trash"></i></button>
             </div>
@@ -1273,7 +1439,6 @@ async function renderBets() {
 // ========================================
 
 async function updateStatistics() {
-    // Получаем ставки для текущего профиля (без фильтра по статусу)
     let bets = [];
     
     if (currentProfileId === 'all') {
@@ -1322,9 +1487,8 @@ async function handleBetActions(e) {
     const action = button.dataset.action;
     const id = parseInt(button.dataset.id);
     
-    if (action === 'view') {
-        const bet = await getBetById(id);
-        if (bet?.image) openImageViewer(bet.image);
+    if (action === 'share') {
+        await openShareModal(id);
     } else if (action === 'edit') {
         await openEditBetModal(id);
     } else if (action === 'delete') {
@@ -1342,22 +1506,6 @@ async function handleBetActions(e) {
     }
 }
 
-async function handleImageChange(e) {
-    const file = e.target.files[0];
-    if (file) {
-        try {
-            const base64 = await fileToBase64(file);
-            currentImageBase64 = base64;
-            elements.imagePreview.innerHTML = `
-                <img src="${base64}" alt="Превью" onclick="openImageViewer(this.src)">
-                <span class="remove-image" onclick="removeImage()"><i class="fas fa-trash"></i> Удалить</span>
-            `;
-        } catch (error) {
-            showToast('Ошибка загрузки', 'error');
-        }
-    }
-}
-
 async function syncData() {
     elements.syncBtn.disabled = true;
     elements.syncBtn.querySelector('i').classList.add('fa-spin');
@@ -1365,7 +1513,6 @@ async function syncData() {
     elements.connectionStatus.className = 'connection-status syncing';
     
     try {
-        // Перезагружаем ВСЕ данные
         await loadAllBets();
         await renderProfiles();
         await renderBets();
@@ -1407,10 +1554,7 @@ async function init() {
         
         updateConnectionStatus();
         
-        // Сначала загружаем ВСЕ ставки в кэш
         await loadAllBets();
-        
-        // Затем рендерим интерфейс
         await renderProfiles();
         await renderBets();
         await updateStatistics();
@@ -1430,6 +1574,10 @@ async function init() {
         elements.cancelProfileBtn.addEventListener('click', resetProfileForm);
         elements.profileForm.addEventListener('submit', handleProfileFormSubmit);
         
+        elements.closeShareModal.addEventListener('click', closeShareModal);
+        elements.downloadShareBtn.addEventListener('click', downloadShareImage);
+        elements.copyShareBtn.addEventListener('click', copyShareImage);
+        
         elements.iconPicker.querySelectorAll('.icon-option').forEach(opt => {
             opt.addEventListener('click', () => {
                 elements.iconPicker.querySelectorAll('.icon-option').forEach(o => o.classList.remove('active'));
@@ -1441,20 +1589,18 @@ async function init() {
         elements.statusFilter.addEventListener('change', renderBets);
         elements.betsTableBody.addEventListener('click', handleBetActions);
         elements.mobileCards.addEventListener('click', handleBetActions);
-        elements.closeViewer.addEventListener('click', closeImageViewer);
-        elements.betImage.addEventListener('change', handleImageChange);
         
         window.addEventListener('resize', handleResize);
         
         elements.betModal.addEventListener('click', (e) => { if (e.target === elements.betModal) closeBetModal(); });
         elements.profilesModal.addEventListener('click', (e) => { if (e.target === elements.profilesModal) closeProfilesModal(); });
-        elements.imageViewer.addEventListener('click', (e) => { if (e.target === elements.imageViewer) closeImageViewer(); });
+        elements.shareModal.addEventListener('click', (e) => { if (e.target === elements.shareModal) closeShareModal(); });
         
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 closeBetModal();
                 closeProfilesModal();
-                closeImageViewer();
+                closeShareModal();
             }
         });
         

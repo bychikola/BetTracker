@@ -79,7 +79,7 @@ body {
 }
 
 /* ========================================
-   Статус подключения - СПРАВА СНИЗУ
+   Статус подключения
    ======================================== */
 .connection-status {
     position: fixed;
@@ -204,7 +204,7 @@ body {
 }
 
 /* ========================================
-   Кнопки-иконки (исправленные цвета)
+   Кнопки-иконки
    ======================================== */
 .btn-icon {
     width: 36px;
@@ -224,12 +224,12 @@ body {
     -webkit-text-fill-color: #000000 !important;
 }
 
-.btn-icon.view {
-    background-color: var(--accent-blue);
+.btn-icon.share {
+    background-color: var(--accent-green);
 }
 
-.btn-icon.view:hover {
-    background-color: #536dfe;
+.btn-icon.share:hover {
+    background-color: #69f0ae;
     transform: scale(1.1);
 }
 
@@ -503,7 +503,7 @@ body {
 }
 
 /* ========================================
-   Таблица ставок (десктоп)
+   Таблица ставок
    ======================================== */
 .table-wrapper {
     overflow-x: auto;
@@ -778,6 +778,32 @@ body {
     display: none;
 }
 
+/* Метка профиля */
+.profile-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.profile-badge i {
+    font-size: 0.6rem;
+}
+
+.bet-card-header > div {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.bets-table td:first-child {
+    min-width: 120px;
+}
+
 /* ========================================
    Модальные окна
    ======================================== */
@@ -813,6 +839,10 @@ body {
     max-width: 700px;
 }
 
+.modal-content.modal-share {
+    max-width: 450px;
+}
+
 .modal-header {
     display: flex;
     justify-content: space-between;
@@ -823,6 +853,9 @@ body {
 
 .modal-header h3 {
     font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .modal-body {
@@ -1081,115 +1114,235 @@ textarea.form-control {
     transform: scale(1.1);
 }
 
-/* Загрузка файла */
-.file-input-wrapper {
-    position: relative;
+/* ========================================
+   Модальное окно инфографики
+   ======================================== */
+.share-preview {
+    background-color: var(--bg-tertiary);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
 }
 
-.file-input-wrapper input[type="file"] {
+.share-card {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border-radius: 16px;
+    padding: 24px;
+    color: #fff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    position: relative;
+    overflow: hidden;
+}
+
+.share-card::before {
+    content: '';
     position: absolute;
-    opacity: 0;
+    top: -50%;
+    right: -50%;
     width: 100%;
     height: 100%;
-    cursor: pointer;
+    background: radial-gradient(circle, rgba(61, 90, 254, 0.1) 0%, transparent 70%);
+    pointer-events: none;
 }
 
-.file-input-label {
+.share-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.share-card-logo {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 12px;
-    background-color: var(--bg-tertiary);
-    border: 2px dashed var(--border-color);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: var(--transition);
-    color: var(--text-secondary);
-}
-
-.file-input-label:hover {
-    border-color: var(--accent-blue);
+    gap: 10px;
+    font-size: 1.2rem;
+    font-weight: 700;
     color: var(--accent-blue);
 }
 
-/* Превью изображения */
-.image-preview {
-    margin-top: 10px;
+.share-card-logo i {
+    font-size: 1.5rem;
 }
 
-.image-preview img {
-    max-width: 100%;
-    max-height: 150px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.image-preview img:hover {
-    opacity: 0.8;
-}
-
-.image-preview .remove-image {
-    display: inline-block;
-    margin-top: 8px;
-    color: var(--accent-red);
-    cursor: pointer;
+.share-card-date {
     font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
 }
 
-.image-preview .remove-image:hover {
-    text-decoration: underline;
+.share-card-type {
+    display: inline-block;
+    background-color: rgba(61, 90, 254, 0.3);
+    color: #a8b4ff;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
 }
 
-/* ========================================
-   Просмотрщик изображений
-   ======================================== */
-.image-viewer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.95);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 2000;
-    padding: 20px;
+.share-card-events {
+    margin-bottom: 20px;
 }
 
-.image-viewer.active {
+.share-event {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+    border-left: 3px solid var(--accent-blue);
+}
+
+.share-event:last-child {
+    margin-bottom: 0;
+}
+
+.share-event-name {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #fff;
+}
+
+.share-event-market {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.image-viewer img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    border-radius: 8px;
+.share-event-market-name {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
 }
 
-.viewer-close {
-    position: absolute;
-    top: 15px;
-    right: 20px;
-    background: none;
-    border: none;
-    color: white;
-    font-size: 2.5rem;
-    cursor: pointer;
-    transition: var(--transition);
-    z-index: 10;
+.share-event-coef {
+    background-color: rgba(61, 90, 254, 0.3);
+    color: #a8b4ff;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.9rem;
 }
 
-.viewer-close:hover {
+.share-card-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.share-stat {
+    text-align: center;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.share-stat-label {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.share-stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.share-stat-value.coef {
+    color: var(--accent-blue);
+}
+
+.share-stat-value.amount {
+    color: #fff;
+}
+
+.share-stat-value.profit {
+    color: var(--accent-green);
+}
+
+.share-stat-value.profit.negative {
     color: var(--accent-red);
-    transform: scale(1.1);
+}
+
+.share-card-status {
+    display: flex;
+    justify-content: center;
+}
+
+.share-status-badge {
+    padding: 10px 24px;
+    border-radius: 25px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.share-status-badge.pending {
+    background: linear-gradient(135deg, #ffc400, #ff9800);
+    color: #000;
+}
+
+.share-status-badge.win {
+    background: linear-gradient(135deg, #00e676, #00c853);
+    color: #000;
+}
+
+.share-status-badge.lose {
+    background: linear-gradient(135deg, #ff1744, #d50000);
+    color: #fff;
+}
+
+.share-status-badge.return {
+    background: linear-gradient(135deg, #3d5afe, #2979ff);
+    color: #fff;
+}
+
+.share-card-footer {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.share-card-profile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.share-card-profile i {
+    font-size: 1rem;
+}
+
+.share-card-watermark {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.share-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.share-actions .btn {
+    flex: 1;
 }
 
 /* ========================================
-   Уведомления (Toast)
+   Уведомления
    ======================================== */
 .toast-container {
     position: fixed;
@@ -1315,6 +1468,18 @@ textarea.form-control {
     .profile-card-name {
         font-size: 0.75rem;
     }
+    
+    .share-card {
+        padding: 16px;
+    }
+    
+    .share-card-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .share-actions {
+        flex-direction: column;
+    }
 }
 
 /* Фикс для iOS и Android */
@@ -1330,33 +1495,4 @@ textarea.form-control {
         color: #000000 !important;
         -webkit-text-fill-color: #000000 !important;
     }
-}
-/* ========================================
-   Метка профиля в ставках
-   ======================================== */
-   .profile-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 0.65rem;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.profile-badge i {
-    font-size: 0.6rem;
-}
-
-/* Адаптация для мобильных карточек */
-.bet-card-header > div {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-/* Стиль для таблицы - метка под датой */
-.bets-table td:first-child {
-    min-width: 120px;
 }

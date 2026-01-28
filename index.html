@@ -45,7 +45,6 @@
                 </button>
             </div>
             <div class="profiles-list" id="profilesList">
-                <!-- Профили добавляются динамически -->
             </div>
         </section>
 
@@ -183,18 +182,6 @@
                     </select>
                 </div>
 
-                <!-- Поле для загрузки изображения -->
-                <div class="form-group" id="imageGroup">
-                    <label for="betImage">Фото чека</label>
-                    <div class="file-input-wrapper">
-                        <input type="file" id="betImage" class="form-control" accept="image/*">
-                        <label for="betImage" class="file-input-label">
-                            <i class="fas fa-camera"></i> Выбрать фото
-                        </label>
-                    </div>
-                    <div class="image-preview" id="imagePreview"></div>
-                </div>
-
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" id="cancelBtn">Отмена</button>
                     <button type="submit" class="btn btn-primary" id="submitBtn">
@@ -216,7 +203,6 @@
                 <button class="close-btn" id="closeProfilesModal">&times;</button>
             </div>
             <div class="modal-body">
-                <!-- Форма добавления профиля -->
                 <div class="profile-form-section">
                     <h4 id="profileFormTitle">Новый профиль</h4>
                     <form id="profileForm">
@@ -266,7 +252,6 @@
                     </form>
                 </div>
 
-                <!-- Список профилей -->
                 <div class="profiles-manage-list">
                     <h4>Существующие профили</h4>
                     <div id="profilesManageList">
@@ -276,11 +261,31 @@
         </div>
     </div>
 
-    <!-- Полноэкранный просмотр изображения -->
-    <div class="image-viewer" id="imageViewer">
-        <button class="viewer-close" id="closeViewer">&times;</button>
-        <img src="" alt="Фото чека" id="viewerImage">
+    <!-- Модальное окно инфографики -->
+    <div class="modal" id="shareModal">
+        <div class="modal-content modal-share">
+            <div class="modal-header">
+                <h3><i class="fas fa-share-alt"></i> Поделиться ставкой</h3>
+                <button class="close-btn" id="closeShareModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="share-preview" id="sharePreview">
+                    <!-- Инфографика генерируется здесь -->
+                </div>
+                <div class="share-actions">
+                    <button class="btn btn-primary" id="downloadShareBtn">
+                        <i class="fas fa-download"></i> Скачать PNG
+                    </button>
+                    <button class="btn btn-secondary" id="copyShareBtn">
+                        <i class="fas fa-copy"></i> Копировать
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <!-- Canvas для генерации изображения (скрытый) -->
+    <canvas id="shareCanvas" style="display: none;"></canvas>
 
     <!-- Уведомления -->
     <div class="toast-container" id="toastContainer"></div>
