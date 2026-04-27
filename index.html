@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
     <!-- Индикатор загрузки -->
     <div class="loading-overlay" id="loadingOverlay">
@@ -35,7 +37,7 @@
         </div>
     </header>
 
-    <main class="container">
+    <main class="container page-view active" id="homePage">
         <!-- Селектор профилей -->
         <section class="profiles-section">
             <div class="profiles-header">
@@ -105,7 +107,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="table-wrapper">
                 <table class="bets-table">
                     <thead>
@@ -124,11 +126,11 @@
                     </tbody>
                 </table>
             </div>
-            
+
             <!-- Мобильные карточки -->
             <div class="mobile-cards" id="mobileCards">
             </div>
-            
+
             <div class="empty-state" id="emptyState">
                 <i class="fas fa-inbox"></i>
                 <p>Нет ставок для отображения</p>
@@ -139,6 +141,211 @@
         </section>
     </main>
 
+    <main class="container page-view" id="eventsPage">
+        <section class="events-page-section">
+            <div class="section-header">
+                <h2><i class="fas fa-calendar-check"></i> Спортивные события</h2>
+                <div class="events-page-actions">
+                    <input type="search" id="eventsSearch" class="form-control" placeholder="Поиск события...">
+                    <button class="btn btn-secondary btn-small" id="refreshEventsBtn" title="Обновить события">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="btn btn-secondary btn-small" id="apiSettingsBtn" title="Настройки API">
+                        <i class="fas fa-key"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="events-api-status" id="eventsApiStatus"></div>
+            <div class="events-filters-wrapper">
+                <div class="events-filters" id="eventsFilters">
+                    <button type="button" class="sport-nav-item active" data-sport="all">
+                        <i class="fas fa-fire"></i>
+                        <span>Топ</span>
+                    </button>
+                    <button type="button" class="sport-nav-item" data-sport="football">
+                        <i class="fas fa-futbol"></i>
+                        <span>Футбол</span>
+                    </button>
+                    <button type="button" class="sport-nav-item" data-sport="hockey">
+                        <i class="fas fa-hockey-puck"></i>
+                        <span>Хоккей</span>
+                    </button>
+                    <button type="button" class="sport-nav-item" data-sport="tennis">
+                        <i class="fas fa-table-tennis-paddle-ball"></i>
+                        <span>Теннис</span>
+                    </button>
+                    <button type="button" class="sport-nav-item" data-sport="basketball">
+                        <i class="fas fa-basketball"></i>
+                        <span>Баскетбол</span>
+                    </button>
+                    <button type="button" class="sport-nav-item" data-sport="esports">
+                        <i class="fas fa-gamepad"></i>
+                        <span>Киберспорт</span>
+                    </button>
+                    <button type="button" class="sport-nav-item" data-sport="volleyball">
+                        <i class="fas fa-volleyball"></i>
+                        <span>Волейбол</span>
+                    </button>
+                    <button type="button" class="sport-nav-item" data-sport="handball">
+                        <i class="fas fa-handball"></i>
+                        <span>Гандбол</span>
+                    </button>
+                    <button type="button" class="sport-nav-item" data-sport="martialarts">
+                        <i class="fas fa-hand-fist"></i>
+                        <span>Единоборства</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="events-header-row">
+                <div class="top-events-title">
+                    Топ-события
+                    <div class="live-badge">Live</div>
+                </div>
+                <button class="btn btn-secondary btn-small">Показать все <i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div class="sports-events-grid" id="sportsEventsGrid"></div>
+        </section>
+    </main>
+
+    <!-- Модальное окно настройки API ключа -->
+    <div class="modal" id="apiSettingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-key"></i> Настройки API</h3>
+                <button class="close-btn" id="closeApiSettingsModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="api-info-block">
+                    <div class="api-info-icon"><i class="fas fa-globe"></i></div>
+                    <div>
+                        <h4>The Odds API</h4>
+                        <p>Для получения реальных спортивных событий и коэффициентов используется <strong>The Odds
+                                API</strong>.</p>
+                    </div>
+                </div>
+
+                <div class="api-steps">
+                    <div class="api-step">
+                        <span class="api-step-num">1</span>
+                        <div>
+                            <strong>Зарегистрируйтесь</strong>
+                            <p>Перейдите на <a href="https://the-odds-api.com/#get-access" target="_blank"
+                                    rel="noopener">the-odds-api.com</a> и создайте бесплатный аккаунт.</p>
+                        </div>
+                    </div>
+                    <div class="api-step">
+                        <span class="api-step-num">2</span>
+                        <div>
+                            <strong>Получите API ключ</strong>
+                            <p>После регистрации вы получите ключ на email. Бесплатный план — <strong>500
+                                    запросов/месяц</strong>.</p>
+                        </div>
+                    </div>
+                    <div class="api-step">
+                        <span class="api-step-num">3</span>
+                        <div>
+                            <strong>Вставьте ключ ниже</strong>
+                            <p>Ключ сохранится локально в вашем браузере.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="apiKeyForm">
+                    <div class="form-group">
+                        <label for="oddsApiKeyInput">API Ключ</label>
+                        <div class="api-key-input-group">
+                            <input type="password" id="oddsApiKeyInput" class="form-control"
+                                placeholder="Вставьте ваш API ключ...">
+                            <button type="button" class="btn btn-secondary btn-small" id="toggleApiKeyVisibility"
+                                title="Показать/скрыть">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="api-quota-info" id="apiQuotaInfo" style="display:none;">
+                        <i class="fas fa-chart-pie"></i>
+                        <span id="apiQuotaText">—</span>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="removeApiKeyBtn">
+                            <i class="fas fa-trash"></i> Удалить ключ
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Сохранить и загрузить
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="eventDetailModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3 id="eventDetailTitle">Детали события</h3>
+                <button class="close-btn" id="closeEventDetailModal">&times;</button>
+            </div>
+            <div class="modal-body event-detail-body">
+                <!-- Баннер события -->
+                <div class="event-detail-banner" id="eventDetailBanner">
+                    <button class="event-detail-fav-btn" title="В избранное"><i class="far fa-star"></i></button>
+                    <button class="event-detail-close-btn" id="closeEventDetailBannerBtn" title="Закрыть"><i class="fas fa-times"></i></button>
+                    <div class="event-detail-breadcrumbs" id="eventDetailBreadcrumbs"></div>
+                    <div class="event-detail-main">
+                        <div class="detail-team-block">
+                            <div class="detail-team-logo" id="homeLogo"></div>
+                            <div>
+                                <div class="detail-team-name" id="homeName"></div>
+                                <div class="match-history-dots" id="homeHistory"></div>
+                            </div>
+                        </div>
+                        <div class="detail-center-info">
+                            <div class="detail-date-time" id="detailDateTime"></div>
+                        </div>
+                        <div class="detail-team-block away">
+                            <div class="detail-team-logo" id="awayLogo"></div>
+                            <div>
+                                <div class="detail-team-name" id="awayName"></div>
+                                <div class="match-history-dots" id="awayHistory"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Табы -->
+                <div class="detail-nav-tabs">
+                    <div class="detail-tab active">Популярное</div>
+                    <div class="detail-tab">Матч</div>
+                    <div class="detail-tab">1-й Тайм</div>
+                    <div class="detail-tab">2-й Тайм</div>
+                    <div class="detail-tab">Угловые</div>
+                </div>
+
+                <!-- Категории рынков -->
+                <div class="market-categories" id="marketCategories">
+                    <div class="market-cat-btn active">Исходы</div>
+                    <div class="market-cat-btn">Тоталы</div>
+                    <div class="market-cat-btn">Форы</div>
+                </div>
+
+                <!-- Контейнер для рынков -->
+                <div id="eventDetailMarkets" class="event-detail-markets"></div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bottom-nav">
+        <button class="nav-button active" id="navHomeBtn">
+            <i class="fas fa-home"></i>
+            <span>Главная</span>
+        </button>
+        <button class="nav-button" id="navEventsBtn">
+            <i class="fas fa-calendar-alt"></i>
+            <span>События</span>
+        </button>
+    </nav>
+
     <!-- Модальное окно добавления/редактирования ставки -->
     <div class="modal" id="betModal">
         <div class="modal-content">
@@ -148,7 +355,7 @@
             </div>
             <form id="betForm">
                 <input type="hidden" id="betId">
-                
+
                 <!-- Контейнер для событий -->
                 <div class="events-container" id="eventsContainer">
                     <div class="events-header">
@@ -210,36 +417,55 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="profileName">Название</label>
-                                <input type="text" id="profileName" class="form-control" placeholder="Например: Лайв ставки" required>
+                                <input type="text" id="profileName" class="form-control"
+                                    placeholder="Например: Лайв ставки" required>
                             </div>
                             <div class="form-group">
                                 <label for="profileColor">Цвет</label>
-                                <input type="color" id="profileColor" class="form-control form-control-color" value="#3d5afe">
+                                <input type="color" id="profileColor" class="form-control form-control-color"
+                                    value="#3d5afe">
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="profileDescription">Описание</label>
-                            <textarea id="profileDescription" class="form-control" rows="2" placeholder="Описание стратегии..."></textarea>
+                            <textarea id="profileDescription" class="form-control" rows="2"
+                                placeholder="Описание стратегии..."></textarea>
                         </div>
                         <div class="form-group">
                             <label>Иконка</label>
                             <div class="icon-picker" id="iconPicker">
-                                <button type="button" class="icon-option active" data-icon="fa-chart-line"><i class="fas fa-chart-line"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-futbol"><i class="fas fa-futbol"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-basketball"><i class="fas fa-basketball"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-hockey-puck"><i class="fas fa-hockey-puck"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-baseball"><i class="fas fa-baseball"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-volleyball"><i class="fas fa-volleyball"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-table-tennis-paddle-ball"><i class="fas fa-table-tennis-paddle-ball"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-bolt"><i class="fas fa-bolt"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-fire"><i class="fas fa-fire"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-star"><i class="fas fa-star"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-crown"><i class="fas fa-crown"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-gem"><i class="fas fa-gem"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-rocket"><i class="fas fa-rocket"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-bullseye"><i class="fas fa-bullseye"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-dice"><i class="fas fa-dice"></i></button>
-                                <button type="button" class="icon-option" data-icon="fa-coins"><i class="fas fa-coins"></i></button>
+                                <button type="button" class="icon-option active" data-icon="fa-chart-line"><i
+                                        class="fas fa-chart-line"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-futbol"><i
+                                        class="fas fa-futbol"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-basketball"><i
+                                        class="fas fa-basketball"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-hockey-puck"><i
+                                        class="fas fa-hockey-puck"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-baseball"><i
+                                        class="fas fa-baseball"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-volleyball"><i
+                                        class="fas fa-volleyball"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-table-tennis-paddle-ball"><i
+                                        class="fas fa-table-tennis-paddle-ball"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-bolt"><i
+                                        class="fas fa-bolt"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-fire"><i
+                                        class="fas fa-fire"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-star"><i
+                                        class="fas fa-star"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-crown"><i
+                                        class="fas fa-crown"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-gem"><i
+                                        class="fas fa-gem"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-rocket"><i
+                                        class="fas fa-rocket"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-bullseye"><i
+                                        class="fas fa-bullseye"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-dice"><i
+                                        class="fas fa-dice"></i></button>
+                                <button type="button" class="icon-option" data-icon="fa-coins"><i
+                                        class="fas fa-coins"></i></button>
                             </div>
                             <input type="hidden" id="profileIcon" value="fa-chart-line">
                         </div>
@@ -287,9 +513,18 @@
     <!-- Canvas для генерации изображения (скрытый) -->
     <canvas id="shareCanvas" style="display: none;"></canvas>
 
+    <!-- Плавающий купон -->
+    <div class="floating-coupon" id="floatingCoupon" style="display: none;">
+        <div class="coupon-badge" id="couponBadge">0</div>
+        <i class="fas fa-receipt"></i>
+        <span>Купон</span>
+    </div>
+
     <!-- Уведомления -->
     <div class="toast-container" id="toastContainer"></div>
 
+
     <script src="script.js"></script>
 </body>
+
 </html>

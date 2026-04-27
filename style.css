@@ -28,13 +28,462 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
-    padding-bottom: 20px;
+    padding-bottom: 90px;
 }
 
 .container {
     max-width: 1400px;
     margin: 0 auto;
     padding: 0 16px;
+}
+
+.page-view {
+    display: none;
+}
+
+.page-view.active {
+    display: block;
+}
+
+.bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px 0;
+    z-index: 100;
+}
+
+.nav-button {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: var(--transition);
+    padding: 6px 8px;
+}
+
+.nav-button i {
+    font-size: 1.25rem;
+}
+
+.nav-button.active,
+.nav-button:hover {
+    color: var(--accent-blue);
+}
+
+.events-page-section,
+.profiles-section,
+.bets-section {
+    background-color: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 16px;
+    margin: 20px 0;
+    box-shadow: var(--shadow);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.events-page-actions {
+    flex: 1;
+    min-width: 220px;
+}
+
+/* ========================================
+   Навигация по видам спорта (Горизонтальная)
+   ======================================== */
+.events-filters-wrapper {
+    margin-bottom: 24px;
+    position: relative;
+}
+
+.events-filters {
+    display: flex;
+    overflow-x: auto;
+    gap: 16px;
+    padding: 10px 0;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+.events-filters::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+.sport-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 80px;
+    cursor: pointer;
+    transition: var(--transition);
+    opacity: 0.6;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    padding: 8px;
+}
+
+.sport-nav-item i {
+    font-size: 1.5rem;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background-color: var(--bg-tertiary);
+    transition: var(--transition);
+}
+
+.sport-nav-item span {
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.sport-nav-item:hover {
+    opacity: 1;
+}
+
+.sport-nav-item.active {
+    opacity: 1;
+    color: var(--accent-blue);
+}
+
+.sport-nav-item.active i {
+    background-color: rgba(61, 90, 254, 0.15);
+    color: var(--accent-blue);
+    box-shadow: 0 0 0 2px var(--accent-blue);
+}
+
+.events-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.top-events-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.5rem;
+    font-weight: 800;
+}
+
+.live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #fff;
+    color: #000;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.live-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background-color: var(--accent-red);
+    border-radius: 50%;
+    animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-red {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 23, 68, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(255, 23, 68, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 23, 68, 0); }
+}
+
+/* ========================================
+   Сетка и карточки спортивных событий
+   ======================================== */
+.sports-events-grid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.sports-event-card {
+    background-color: var(--bg-secondary);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+
+}
+
+.sports-event-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--accent-blue);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.sports-event-card.demo-card {
+    border-style: dashed;
+    border-color: var(--accent-yellow);
+}
+
+.card-top-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.sport-tag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    background-color: rgba(0, 230, 118, 0.15);
+    color: var(--accent-green);
+    border-radius: 6px;
+    text-transform: capitalize;
+}
+
+.league-name {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    display: block;
+}
+
+.favorite-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: var(--transition);
+}
+
+.favorite-btn:hover, .favorite-btn.active {
+    color: var(--accent-yellow);
+}
+
+.match-time {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.match-time.status-live {
+    color: var(--accent-green);
+}
+
+.match-time.status-completed {
+    color: var(--text-primary);
+}
+
+.match-teams {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.team-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.team-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.team-logo {
+    width: 28px;
+    height: 28px;
+    background-color: var(--bg-tertiary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+}
+
+.team-score {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--accent-red);
+}
+
+.team-score.placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+.odds-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.event-market-lock {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 16px;
+    border: 1px dashed var(--border-color);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    background-color: rgba(255, 255, 255, 0.02);
+    font-size: 0.85rem;
+    margin-top: 8px;
+}
+
+.event-market-lock.compact {
+    padding: 12px;
+}
+
+.event-market-lock.muted {
+    opacity: 0.8;
+}
+
+.odd-button {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.odd-button:hover {
+    background-color: rgba(61, 90, 254, 0.1);
+    border-color: var(--accent-blue);
+}
+
+.odd-button:disabled,
+.detailed-odd-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+    transform: none;
+}
+
+.odd-label {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.odd-value {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.odd-button.in-coupon {
+    background-color: var(--accent-blue);
+    border-color: var(--accent-blue);
+}
+
+.odd-button.in-coupon .odd-label,
+.odd-button.in-coupon .odd-value {
+    color: #fff;
+}
+
+@media (max-width: 1200px) {
+    .sports-events-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .events-section,
+    .dashboard,
+    .profiles-section,
+    .bets-section,
+    .events-page-section {
+        margin-bottom: 80px;
+    }
+
+    .header .container,
+    .section-header,
+    .events-page-actions,
+    .header-actions {
+        flex-wrap: wrap;
+    }
+
+    .header-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .header-actions .btn {
+        width: 100%;
+    }
+
+    .sports-events-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .bottom-nav {
+        padding: 10px 6px;
+    }
+
+    .nav-button {
+        font-size: 0.75rem;
+    }
+
+    .nav-button i {
+        font-size: 1.1rem;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ========================================
@@ -833,6 +1282,7 @@ body {
     max-width: 500px;
     margin: auto;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
 }
 
 .modal-content.modal-large {
@@ -1112,6 +1562,28 @@ textarea.form-control {
 .remove-event-btn:hover {
     background: #ff5252;
     transform: scale(1.1);
+}
+
+/* ========================================
+   Модальное окно события — Полный редизайн
+   ======================================== */
+.event-detail-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+}
+
+/* Убираем стандартные отступы modal-body для event detail */
+.modal-body.event-detail-body {
+    padding: 0;
+}
+
+.event-detail-markets {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0 20px 20px;
 }
 
 /* ========================================
@@ -1494,5 +1966,823 @@ textarea.form-control {
     .btn-icon i {
         color: #000000 !important;
         -webkit-text-fill-color: #000000 !important;
+    }
+}
+
+/* ========================================
+   API Settings Modal & Events Enhancements
+   ======================================== */
+
+/* Events page actions layout */
+.events-page-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 220px;
+}
+
+.events-page-actions .form-control {
+    flex: 1;
+}
+
+/* API Status Banner */
+.events-api-status {
+    margin-bottom: 12px;
+}
+
+.api-status-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    animation: fadeInBanner 0.3s ease;
+}
+
+@keyframes fadeInBanner {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.api-status-banner.api-status-warning {
+    background: rgba(255, 196, 0, 0.1);
+    border: 1px solid rgba(255, 196, 0, 0.25);
+    color: var(--accent-yellow);
+}
+
+.api-status-banner.api-status-live {
+    background: rgba(0, 230, 118, 0.08);
+    border: 1px solid rgba(0, 230, 118, 0.2);
+    color: var(--accent-green);
+}
+
+.api-status-banner .link-btn {
+    background: none;
+    border: none;
+    color: var(--accent-blue);
+    cursor: pointer;
+    font-weight: 700;
+    font-size: inherit;
+    text-decoration: underline;
+    padding: 0;
+}
+
+.api-status-banner .link-btn:hover {
+    color: #536dfe;
+}
+
+.api-quota-badge {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Demo badge on event cards */
+.demo-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: rgba(255, 196, 0, 0.2);
+    color: var(--accent-yellow);
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+    margin-left: 6px;
+}
+
+.sports-event-card.demo-card {
+    border: 1px dashed rgba(255, 196, 0, 0.25);
+}
+
+.sports-event-bookmaker {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sports-event-bookmaker i {
+    font-size: 0.7rem;
+    opacity: 0.7;
+}
+
+.bk-count {
+    opacity: 0.5;
+    font-size: 0.75rem;
+}
+
+/* Market odds line on event card */
+.sports-event-market-line {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--accent-blue);
+    background: rgba(61, 90, 254, 0.08);
+    padding: 6px 12px;
+    border-radius: 8px;
+    letter-spacing: 0.3px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Skeleton Loading Cards */
+.skeleton-card {
+    pointer-events: none;
+}
+
+.skeleton-line {
+    background: linear-gradient(90deg, var(--bg-tertiary) 25%, #3a3a3a 50%, var(--bg-tertiary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+}
+
+.skeleton-title {
+    height: 20px;
+    width: 75%;
+}
+
+.skeleton-meta {
+    height: 14px;
+    width: 50%;
+}
+
+.skeleton-time {
+    height: 14px;
+    width: 60%;
+}
+
+.skeleton-btn {
+    height: 32px;
+    width: 40%;
+    margin-top: 4px;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* API Settings Modal */
+.api-info-block {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: rgba(61, 90, 254, 0.08);
+    border: 1px solid rgba(61, 90, 254, 0.2);
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.api-info-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(61, 90, 254, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: var(--accent-blue);
+    flex-shrink: 0;
+}
+
+.api-info-block h4 {
+    font-size: 1rem;
+    margin-bottom: 4px;
+}
+
+.api-info-block p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.api-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.api-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.api-step-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-blue), #536dfe);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.api-step strong {
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 2px;
+}
+
+.api-step p {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.api-step a {
+    color: var(--accent-blue);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.api-step a:hover {
+    text-decoration: underline;
+}
+
+/* API Key Input Group */
+.api-key-input-group {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.api-key-input-group .form-control {
+    flex: 1;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+}
+
+.api-key-input-group .btn {
+    flex-shrink: 0;
+}
+
+/* API Quota Info */
+.api-quota-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(0, 230, 118, 0.08);
+    border: 1px solid rgba(0, 230, 118, 0.2);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    color: var(--accent-green);
+    margin-bottom: 16px;
+}
+
+@media (max-width: 600px) {
+    .events-page-actions {
+        flex-wrap: wrap;
+    }
+
+    .api-info-block {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .api-step {
+        gap: 10px;
+    }
+
+    .api-step-num {
+        width: 28px;
+        height: 28px;
+        font-size: 0.75rem;
+    }
+}
+
+/* ========================================
+   Floating Coupon
+   ======================================== */
+.floating-coupon {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    background: linear-gradient(135deg, var(--accent-blue), #536dfe);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 30px;
+    box-shadow: 0 4px 15px rgba(61, 90, 254, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    z-index: 3000;
+    font-weight: 600;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+}
+
+.floating-coupon:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 8px 25px rgba(61, 90, 254, 0.6);
+}
+
+.floating-coupon.pulse {
+    animation: couponPulse 0.5s ease;
+}
+
+.coupon-badge {
+    background-color: var(--accent-red);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.floating-coupon i {
+    font-size: 1.2rem;
+}
+
+@keyframes couponPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+}
+/* ========================================
+   Детальная страница события — Premium Design
+   ======================================== */
+
+/* --- Banner --- */
+.event-detail-banner {
+    background: linear-gradient(160deg, #1a3a22 0%, #15291a 40%, var(--bg-secondary) 100%);
+    padding: 28px 24px 24px;
+    position: relative;
+    overflow: hidden;
+}
+
+.event-detail-banner::before {
+    content: '';
+    position: absolute;
+    top: -60%;
+    left: -30%;
+    width: 160%;
+    height: 160%;
+    background: radial-gradient(circle at 30% 30%, rgba(0,230,118,0.06) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.event-detail-breadcrumbs {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 24px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+}
+
+.event-detail-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.detail-team-block {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 0;
+}
+
+.detail-team-block.away {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+.detail-team-block.away .match-history-dots {
+    justify-content: flex-end;
+}
+
+.detail-team-logo {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    background-color: rgba(255,255,255,0.9);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: #333;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.detail-team-name {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.match-history-dots {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.history-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.history-dot.win { background-color: #00e676; color: #000; }
+.history-dot.lose { background-color: #ff1744; }
+.history-dot.draw { background-color: #757575; }
+.history-dot.unknown { background-color: rgba(255, 255, 255, 0.15); color: rgba(255,255,255,0.5); }
+
+.detail-center-info {
+    text-align: center;
+    min-width: 90px;
+    flex-shrink: 0;
+}
+
+.detail-date-time {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.5;
+}
+
+.detail-date-time .detail-date-label {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.5);
+    font-weight: 400;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.detail-time-main {
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.detail-status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 8px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.detail-status-pill.status-upcoming {
+    background-color: rgba(255, 196, 0, 0.18);
+    color: #ffd54f;
+}
+
+.detail-status-pill.status-live {
+    background-color: rgba(0, 230, 118, 0.18);
+    color: #75ffb0;
+}
+
+.detail-status-pill.status-completed {
+    background-color: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.detail-score-line {
+    margin-top: 8px;
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.detail-score-line.status-live {
+    color: #75ffb0;
+}
+
+.detail-score-line.status-completed {
+    color: #fff;
+}
+
+/* --- Tabs --- */
+.detail-nav-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border-color);
+    margin: 0;
+    padding: 0 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    background-color: var(--bg-secondary);
+}
+
+.detail-nav-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.detail-tab {
+    padding: 14px 16px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 3px solid transparent;
+    transition: color 0.2s ease, border-color 0.2s ease;
+    margin-bottom: -2px;
+    letter-spacing: 0.3px;
+}
+
+.detail-tab:hover {
+    color: var(--text-primary);
+}
+
+.detail-tab.active {
+    color: var(--accent-green);
+    border-bottom-color: var(--accent-green);
+}
+
+/* --- Market Categories --- */
+.market-categories {
+    display: flex;
+    gap: 8px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0;
+}
+
+.market-categories::-webkit-scrollbar {
+    display: none;
+}
+
+.market-cat-btn {
+    padding: 8px 18px;
+    background-color: var(--bg-tertiary);
+    border-radius: 20px;
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+.market-cat-btn:hover {
+    border-color: var(--text-secondary);
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.market-cat-btn.active {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+/* --- Market Sections --- */
+.market-section {
+    margin-bottom: 6px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+}
+
+.market-group-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 0.92rem;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    user-select: none;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.market-group-title:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.market-group-title i {
+    font-size: 0.7rem;
+    color: var(--accent-green);
+    transition: transform 0.2s ease;
+}
+
+.market-section.collapsed .market-group-title i {
+    transform: rotate(-90deg);
+}
+
+.market-section.collapsed .market-odds-list {
+    display: none;
+}
+
+/* --- Odds List Grid --- */
+.market-odds-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 16px 16px;
+}
+
+/* --- Odds Buttons --- */
+.detailed-odd-btn {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    flex: 1;
+    min-width: 120px;
+}
+
+.detailed-odd-btn:hover {
+    background-color: rgba(61, 90, 254, 0.08);
+    border-color: rgba(61, 90, 254, 0.4);
+    transform: translateY(-1px);
+}
+
+.detailed-odd-btn:active {
+    transform: translateY(0);
+}
+
+.detailed-odd-btn.in-coupon {
+    background-color: var(--accent-green);
+    border-color: var(--accent-green);
+    color: #000;
+    box-shadow: 0 2px 8px rgba(0, 230, 118, 0.3);
+}
+
+.detailed-odd-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.detailed-odd-val {
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--text-primary);
+    flex-shrink: 0;
+}
+
+.detailed-odd-btn.in-coupon .detailed-odd-name,
+.detailed-odd-btn.in-coupon .detailed-odd-val {
+    color: #000;
+}
+
+/* --- Modal sizing for event detail --- */
+#eventDetailModal .modal-content.modal-large {
+    max-width: 780px;
+}
+
+#eventDetailModal .modal-header {
+    display: none;
+}
+
+/* Close button repositioned over banner */
+.event-detail-close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+    width: 36px;
+    height: 36px;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.event-detail-close-btn:hover {
+    background: rgba(255, 23, 68, 0.6);
+    border-color: rgba(255, 23, 68, 0.8);
+    transform: scale(1.1);
+}
+
+/* Favorite button in detail */
+.event-detail-fav-btn {
+    position: absolute;
+    top: 16px;
+    right: 60px;
+    z-index: 10;
+    width: 36px;
+    height: 36px;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.6);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.event-detail-fav-btn:hover {
+    color: var(--accent-yellow);
+    border-color: rgba(255, 196, 0, 0.4);
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+    .event-detail-main {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .detail-team-block,
+    .detail-team-block.away {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .detail-team-block.away .match-history-dots {
+        justify-content: center;
+    }
+
+    .match-history-dots {
+        justify-content: center;
+    }
+
+    .detail-team-name {
+        font-size: 1.1rem;
+    }
+
+    .detail-team-logo {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+    }
+
+    .detailed-odd-btn {
+        min-width: 100%;
+    }
+
+    .detail-tab {
+        padding: 12px 12px;
+        font-size: 0.75rem;
     }
 }
